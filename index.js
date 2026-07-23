@@ -1,6 +1,16 @@
 const express = require('express');
 const line = require('@line/bot-sdk');
+const admin = require('firebase-admin');
 require('dotenv').config();
+
+const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS);
+
+admin.initializeApp({
+credential: admin.credential.cert(serviceAccount),
+databaseURL: "https://pharmacy-bot-fd2cb-default-rtdb.asia-southeast1.firebasedatabase.app"
+});
+
+const db = admin.database();
 
 const config = {
 channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
@@ -30,7 +40,7 @@ return client.replyMessage({
 replyToken: event.replyToken,
 messages: [{
 type: 'text',
-text: '系統已收到您的測試訊息：' + event.message.text
+text: '系統已準備好寫入資料庫，收到訊息：' + event.message.text
 }]
 });
 }
