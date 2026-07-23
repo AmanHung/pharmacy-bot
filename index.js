@@ -20,16 +20,19 @@ app.post('/webhook', line.middleware(config), (req, res) => {
 });
 
 function handleEvent(event) {
-  if (event.type !== 'message' || event.message.type !== 'text') {
-    return Promise.resolve(null);
-  }
-  const client = new line.Client(config);
-  return client.replyMessage(event.replyToken, {
-    type: 'text',
-    text: '系統已收到您的測試訊息：' + event.message.text
-  });
+if (event.type !== 'message' || event.message.type !== 'text') {
+return Promise.resolve(null);
 }
-
+const client = new line.messagingApi.MessagingApiClient({
+channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN
+});
+return client.replyMessage({
+replyToken: event.replyToken,
+messages: [{
+type: 'text',
+text: '系統已收到您的測試訊息：' + event.message.text
+}]
+});
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log('伺服器啟動中，監聽通訊埠：' + port);
