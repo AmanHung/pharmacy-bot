@@ -33,6 +33,14 @@ function handleEvent(event) {
 if (event.type !== 'message' || event.message.type !== 'text') {
 return Promise.resolve(null);
 }
+
+const recordRef = db.ref('pharmacy_records');
+const newRecord = {
+text: event.message.text,
+timestamp: admin.database.ServerValue.TIMESTAMP
+};
+recordRef.push(newRecord);
+
 const client = new line.messagingApi.MessagingApiClient({
 channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN
 });
@@ -40,7 +48,7 @@ return client.replyMessage({
 replyToken: event.replyToken,
 messages: [{
 type: 'text',
-text: '系統已準備好寫入資料庫，收到訊息：' + event.message.text
+text: '資料庫寫入測試成功，已儲存紀錄：' + event.message.text
 }]
 });
 }
