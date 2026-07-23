@@ -3,20 +3,20 @@ const line = require('@line/bot-sdk');
 require('dotenv').config();
 
 const config = {
-  channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
-  channelSecret: process.env.CHANNEL_SECRET
+channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
+channelSecret: process.env.CHANNEL_SECRET
 };
 
 const app = express();
 
 app.post('/webhook', line.middleware(config), (req, res) => {
-  Promise
-    .all(req.body.events.map(handleEvent))
-    .then((result) => res.json(result))
-    .catch((err) => {
-      console.error(err);
-      res.status(500).end();
-    });
+Promise
+.all(req.body.events.map(handleEvent))
+.then((result) => res.json(result))
+.catch((err) => {
+console.error(err);
+res.status(500).end();
+});
 });
 
 function handleEvent(event) {
@@ -33,8 +33,10 @@ type: 'text',
 text: '系統已收到您的測試訊息：' + event.message.text
 }]
 });
+}
+
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
-  console.log('伺服器啟動中，監聽通訊埠：' + port);
+console.log('伺服器啟動中，監聽通訊埠：' + port);
 });
 module.exports = app;
