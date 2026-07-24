@@ -6,6 +6,10 @@ function createFixtures(repositoryOverrides = {}, handlerOptions = {}) {
   const replies = [];
   const readReceipts = [];
   const client = {
+    async getGroupSummary(groupId) {
+      assert.equal(groupId, 'G1');
+      return { groupName: '核心測試群組' };
+    },
     async getGroupMemberProfile(groupId, userId) {
       assert.equal(groupId, 'G1');
       assert.equal(userId, 'U1');
@@ -27,6 +31,7 @@ function createFixtures(repositoryOverrides = {}, handlerOptions = {}) {
     async listRecords() {
       return [];
     },
+    async registerScope() {},
     async completeRecord() {
       return null;
     },
@@ -75,7 +80,14 @@ test('一般群組聊天不儲存也不回覆', async () => {
 });
 
 test('加入群組時回覆簡短功能介紹', async () => {
-  const { handler, replies } = createFixtures();
+  let registeredScope;
+  let registeredMetadata;
+  const { handler, replies } = createFixtures({
+    async registerScope(scope, metadata) {
+      registeredScope = scope;
+      registeredMetadata = metadata;
+    },
+  });
   const event = {
     type: 'join',
     replyToken: 'join-reply-token',
@@ -85,6 +97,11 @@ test('加入群組時回覆簡短功能介紹', async () => {
 
   await handler(event);
 
+  assert.deepEqual(registeredScope, { type: 'group', id: 'G1' });
+  assert.deepEqual(registeredMetadata, {
+    groupName: '核心測試群組',
+    registeredAt: 1721779200000,
+  });
   assert.equal(replies.length, 1);
   assert.deepEqual(replies[0].messages[0], {
     type: 'text',

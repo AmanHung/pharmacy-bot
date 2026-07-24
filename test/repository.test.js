@@ -37,6 +37,44 @@ function createDatabase(records) {
   };
 }
 
+test('加入群組時保存群組識別資料', async () => {
+  let referencePath;
+  let savedMetadata;
+  const database = {
+    ref(path) {
+      referencePath = path;
+      return {
+        child(name) {
+          assert.equal(name, 'metadata');
+          return {
+            async update(metadata) {
+              savedMetadata = metadata;
+            },
+          };
+        },
+      };
+    },
+  };
+  const repository = createRecordRepository(database);
+
+  await repository.registerScope(
+    { type: 'group', id: 'G-CORE' },
+    {
+      groupName: '豐醫藥劑科緊急聯絡群',
+      registeredAt: 1721779200000,
+    },
+  );
+
+  assert.match(referencePath, /^pharmacy_scopes\//);
+  assert.deepEqual(savedMetadata, {
+    sourceType: 'group',
+    sourceId: 'G-CORE',
+    groupName: '豐醫藥劑科緊急聯絡群',
+    registeredAt: 1721779200000,
+    updatedAt: 1721779200000,
+  });
+});
+
 test('查詢結果依建立日期由新到舊排列', async () => {
   const repository = createRecordRepository(
     createDatabase([

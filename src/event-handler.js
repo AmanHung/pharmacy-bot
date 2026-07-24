@@ -51,6 +51,20 @@ async function getDisplayName(client, source) {
   }
 }
 
+async function getGroupName(client, source) {
+  if (source?.type !== 'group' || !source.groupId) {
+    return null;
+  }
+
+  try {
+    const summary = await client.getGroupSummary(source.groupId);
+    return summary.groupName || null;
+  } catch (error) {
+    console.warn('Unable to retrieve LINE group name:', error.message);
+    return null;
+  }
+}
+
 function createEventHandler({
   client,
   repository,
@@ -144,6 +158,12 @@ function createEventHandler({
     }
 
     if (event.type === 'join') {
+      const registeredAt = event.timestamp || now();
+      const groupName = await getGroupName(client, event.source);
+      await repository.registerScope(scope, {
+        groupName,
+        registeredAt,
+      });
       return reply(event, JOIN_MESSAGE);
     }
 
@@ -249,5 +269,6 @@ function createEventHandler({
 module.exports = {
   createEventHandler,
   getDisplayName,
+  getGroupName,
   isBotMentioned,
 };

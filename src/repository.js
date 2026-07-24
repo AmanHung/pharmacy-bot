@@ -15,9 +15,24 @@ function snapshotValues(snapshot) {
 }
 
 function createRecordRepository(database, { drugAliases = [] } = {}) {
+  function scopeRef(scope) {
+    const scopeKey = toFirebaseScopeKey(scope);
+    return database.ref(`pharmacy_scopes/${scopeKey}`);
+  }
+
   function recordsRef(scope) {
     const scopeKey = toFirebaseScopeKey(scope);
     return database.ref(`pharmacy_scopes/${scopeKey}/records`);
+  }
+
+  async function registerScope(scope, metadata = {}) {
+    await scopeRef(scope).child('metadata').update({
+      sourceType: scope.type,
+      sourceId: scope.id,
+      groupName: metadata.groupName || null,
+      registeredAt: metadata.registeredAt,
+      updatedAt: metadata.registeredAt,
+    });
   }
 
   async function saveRecord(scope, eventKey, record) {
@@ -157,6 +172,7 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
   return {
     completeRecord,
     listRecords,
+    registerScope,
     saveRecord,
     withdrawRecordByMessageId,
   };
