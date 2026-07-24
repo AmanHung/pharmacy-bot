@@ -3,7 +3,7 @@ const { extractNoticeDeadline } = require('./deadlines');
 const { createShortId } = require('./identifiers');
 const {
   FUNCTION_MENU_MESSAGE,
-  HELP_MESSAGE,
+  JOIN_MESSAGE,
   formatInvalidCommand,
   formatQueryResult,
 } = require('./messages');
@@ -144,7 +144,7 @@ function createEventHandler({
     }
 
     if (event.type === 'join') {
-      return reply(event, HELP_MESSAGE);
+      return reply(event, JOIN_MESSAGE);
     }
 
     if (event.type === 'unsend' && event.unsend?.messageId) {

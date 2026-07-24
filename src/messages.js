@@ -10,6 +10,13 @@ const CATEGORY_LABELS = {
 const QUERY_PAGE_SIZE = 5;
 const STALE_OPEN_DAYS = 7;
 
+const JOIN_MESSAGE = [
+  '大家好，我是藥劑科資訊小幫手。',
+  '可協助整理及查詢交班、缺換藥、公告與教育訓練資訊。',
+  '＠我或輸入 /help，即可開啟功能選單。',
+  '一般聊天不會被記錄，請安心使用。',
+].join('\n');
+
 const HELP_MESSAGE = [
   '藥劑科資訊機器人指令：',
   '',
@@ -535,6 +542,7 @@ function formatInvalidCommand(command) {
 module.exports = {
   FUNCTION_MENU_MESSAGE,
   HELP_MESSAGE,
+  JOIN_MESSAGE,
   QUERY_PAGE_SIZE,
   formatAge,
   formatCompletedRecord,

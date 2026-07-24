@@ -74,6 +74,29 @@ test('一般群組聊天不儲存也不回覆', async () => {
   assert.equal(replies.length, 0);
 });
 
+test('加入群組時回覆簡短功能介紹', async () => {
+  const { handler, replies } = createFixtures();
+  const event = {
+    type: 'join',
+    replyToken: 'join-reply-token',
+    timestamp: 1721779200000,
+    source: { type: 'group', groupId: 'G1' },
+  };
+
+  await handler(event);
+
+  assert.equal(replies.length, 1);
+  assert.deepEqual(replies[0].messages[0], {
+    type: 'text',
+    text: [
+      '大家好，我是藥劑科資訊小幫手。',
+      '可協助整理及查詢交班、缺換藥、公告與教育訓練資訊。',
+      '＠我或輸入 /help，即可開啟功能選單。',
+      '一般聊天不會被記錄，請安心使用。',
+    ].join('\n'),
+  });
+});
+
 test('@ 機器人時回覆可操作的功能選單', async () => {
   const { handler, replies } = createFixtures();
   const event = textEvent('@藥劑科機器人');
