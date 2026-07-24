@@ -1,1 +1,12 @@
-const express = require('express'); const line = require('@line/bot-sdk'); const { initializeApp, cert } = require('firebase-admin/app'); const { getDatabase } = require('firebase-admin/database'); require('dotenv').config(); const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS); initializeApp({ credential: cert(serviceAccount), databaseURL: "https://pharmacy-bot-fd2cb-default-rtdb.asia-southeast1.firebasedatabase.app" }); const db = getDatabase(); const config = { channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN, channelSecret: process.env.CHANNEL_SECRET }; const app = express(); app.post('/webhook', line.middleware(config), (req, res) => { Promise.all(req.body.events.map(handleEvent)).then((result) => res.json(result)).catch((err) => { console.error(err); res.status(500).end(); }); }); async function handleEvent(event) { if (event.type !== 'message' || event.message.type !== 'text') { return Promise.resolve(null); } const userText = event.message.text.trim(); const recordRef = db.ref('pharmacy_records'); const client = new line.messagingApi.MessagingApiClient({ channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN }); if (userText === '查') { const snapshot = await recordRef.orderByChild('timestamp').limitToLast(5).once('value'); let replyText = '最新交班紀錄：\n'; if (snapshot.exists()) { snapshot.forEach((childSnapshot) => { const data = childSnapshot.val(); const timeString = new Date(data.timestamp).toLocaleString('zh-TW'); const poster = data.userName || '未知同仁'; replyText += timeString + ' [' + poster + '] - ' + data.text + '\n'; }); } else { replyText = '目前沒有任何交班紀錄。'; } return client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: replyText.trim() }] }); } else { let userName = '未知同仁'; if (event.source.userId) { try { const profile = await client.getProfile(event.source.userId); userName = profile.displayName; } catch (err) { console.error(err); } } const newRecord = { text: userText, userName: userName, timestamp: Date.now() }; await recordRef.push(newRecord); return client.replyMessage({ replyToken: event.replyToken, messages: [{ type: 'text', text: userName + '，您的交班事項已儲存：' + userText }] }); } } const port = process.env.PORT || 3000; app.listen(port, () => { console.log('伺服器啟動中，監聽通訊埠：' + port); }); module.exports = app;
+const { createApplication } = require('./src/bootstrap');
+
+const app = createApplication();
+
+if (require.main === module) {
+  const port = process.env.PORT || 3000;
+  app.listen(port, () => {
+    console.log(`Pharmacy bot is listening on port ${port}`);
+  });
+}
+
+module.exports = app;

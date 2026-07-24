@@ -1,0 +1,13 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "pharmacy_scopes": {
+      "$scopeId": {
+        "records": {
+          ".indexOn": ["createdAt", "shortId", "sourceMessageId"]
+        }
+      }
+    }
+  }
+}
