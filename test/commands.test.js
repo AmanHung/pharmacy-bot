@@ -22,11 +22,6 @@ test('解析英文與中文新增指令', () => {
     category: 'education',
     content: '北區藥學研討會',
   });
-  assert.deepEqual(parseCommand('/安 注意相似藥品外觀'), {
-    type: 'add',
-    category: 'safety',
-    content: '注意相似藥品外觀',
-  });
 });
 
 test('解析分類及關鍵字查詢', () => {
@@ -39,11 +34,6 @@ test('解析分類及關鍵字查詢', () => {
     type: 'query',
     category: null,
     keyword: '冷藏',
-  });
-  assert.deepEqual(parseCommand('/q s 吸入器'), {
-    type: 'query',
-    category: 'safety',
-    keyword: '吸入器',
   });
 });
 

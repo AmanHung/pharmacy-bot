@@ -5,7 +5,6 @@ const CATEGORY_LABELS = {
   medication: '缺換藥',
   notice: '公告',
   education: '教育訓練',
-  safety: '藥品安全',
 };
 
 const QUERY_PAGE_SIZE = 5;
@@ -19,13 +18,11 @@ const HELP_MESSAGE = [
   '/n 內容　新增公告',
   '/n 內容 #到期 YYYY-MM-DD　新增有期限的公告',
   '/e 內容　新增教育訓練',
-  '/s 內容　新增藥品安全',
   '/q　　　 查詢所有資訊',
   '/q h　　 查詢最近 7 天交班',
   '/q m　　 查詢所有缺換藥',
   '/q n　　 查詢所有公告',
   '/q e　　 查詢所有教育訓練',
-  '/q s　　 查詢所有藥品安全',
   '/q 關鍵字　搜尋所有資訊',
   '/open　　 查詢所有未完成事項',
   '/open 關鍵字　搜尋未完成事項',
@@ -163,11 +160,6 @@ const FUNCTION_MENU_MESSAGE = {
               '輸入 /e',
               createComposeAction('/e', '輸入教育訓練'),
             ),
-            createMenuRow(
-              '藥品安全',
-              '輸入 /s',
-              createComposeAction('/s', '輸入藥品安全'),
-            ),
           ],
         },
         {
@@ -217,14 +209,6 @@ const FUNCTION_MENU_MESSAGE = {
               data: buildQueryPostback({
                 mode: 'query',
                 category: 'education',
-              }),
-            }),
-            createMenuRow('所有藥品安全', '查詢', {
-              type: 'postback',
-              label: '查詢所有藥品安全',
-              data: buildQueryPostback({
-                mode: 'query',
-                category: 'safety',
               }),
             }),
             createMenuRow('所有未完成事項', '查詢', {
@@ -289,6 +273,21 @@ function cleanText(text, maximumLength = 600) {
   return `${normalized.slice(0, maximumLength - 1)}…`;
 }
 
+function extractFirstWebUrl(text) {
+  const match = String(text || '').match(/https?:\/\/[^\s<>"']+/iu);
+  if (!match) {
+    return null;
+  }
+
+  const candidate = match[0].replace(/[，。！？；：,.!?;:）)\]}]+$/u, '');
+  try {
+    const url = new URL(candidate);
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
 function formatSavedRecord(record) {
   const lines = [
     `[${record.shortId}] 已記錄${getCategoryLabel(record.category)}資訊`,
@@ -320,6 +319,10 @@ function createRecordComponents(record, filters, currentTime) {
     record.category === 'handover' ? '#E8F5E9' : '#FDECEC';
   const actionTextColor =
     record.category === 'handover' ? '#2E7D32' : '#C62828';
+  const linkUrl =
+    record.category === 'notice'
+      ? extractFirstWebUrl(record.content)
+      : null;
   const metadata = [
     getCategoryLabel(record.category),
     formatTimestamp(record.createdAt),
@@ -363,6 +366,18 @@ function createRecordComponents(record, filters, currentTime) {
             wrap: true,
             flex: 1,
           },
+          ...(linkUrl
+            ? [
+                createPillAction('開啟連結', {
+                  type: 'uri',
+                  label: '開啟公告連結',
+                  uri: linkUrl,
+                  altUri: {
+                    desktop: linkUrl,
+                  },
+                }),
+              ]
+            : []),
           createPillAction(
             actionLabel,
             {
@@ -506,7 +521,6 @@ function formatInvalidCommand(command) {
       medication: 'm',
       notice: 'n',
       education: 'e',
-      safety: 's',
     }[command.category];
     return `請在指令後輸入內容，例如：/${letter} 需要記錄的資訊`;
   }

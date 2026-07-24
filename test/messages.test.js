@@ -74,11 +74,29 @@ test('功能選單可預填新增指令並直接執行查詢', () => {
   assert.match(serialized, /"inputOption":"openKeyboard"/);
   assert.match(serialized, /"fillInText":"\/m "/);
   assert.match(serialized, /"fillInText":"\/e "/);
-  assert.match(serialized, /"fillInText":"\/s "/);
   assert.match(serialized, /action=query/);
   assert.match(serialized, /category=education/);
-  assert.match(serialized, /category=safety/);
   assert.equal(FUNCTION_MENU_MESSAGE.type, 'flex');
+});
+
+test('公告包含網址時提供可直接開啟的連結按鈕', () => {
+  const noticeRecord = record(4, 'notice');
+  noticeRecord.content =
+    '教育訓練記事本 https://example.com/notes/123。';
+  const message = formatQueryResult(
+    [noticeRecord],
+    { type: 'query', category: 'notice', keyword: '' },
+    { currentTime: 10 * DAY, page: 0 },
+  );
+  const serialized = JSON.stringify(message);
+
+  assert.match(serialized, /"text":"開啟連結"/);
+  assert.match(serialized, /"type":"uri"/);
+  assert.match(serialized, /"uri":"https:\/\/example.com\/notes\/123"/);
+  assert.match(
+    serialized,
+    /"desktop":"https:\/\/example.com\/notes\/123"/,
+  );
 });
 
 test('缺換藥與公告不顯示登錄者但交班保留', () => {

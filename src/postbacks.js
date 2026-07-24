@@ -3,7 +3,6 @@ const VALID_CATEGORIES = new Set([
   'medication',
   'notice',
   'education',
-  'safety',
 ]);
 const MAX_POSTBACK_KEYWORD_LENGTH = 120;
 
