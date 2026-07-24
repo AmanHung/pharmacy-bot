@@ -312,23 +312,13 @@ test('交班查詢只傳遞最近七天的範圍', async () => {
   });
 });
 
-test('未完成事項查詢不限制日期', async () => {
-  let receivedFilters;
-  const { handler } = createFixtures({
-    async listRecords(_scope, filters) {
-      receivedFilters = filters;
-      return [];
-    },
-  });
+test('已移除未完成事項查詢指令', async () => {
+  const { handler, replies } = createFixtures();
 
   await handler(textEvent('/open m cefazolin'));
 
-  assert.deepEqual(receivedFilters, {
-    category: 'medication',
-    keyword: 'cefazolin',
-    limit: 100,
-    activeAt: 1721779200000,
-  });
+  assert.equal(replies.length, 1);
+  assert.match(replies[0].messages[0].text, /無法辨識指令/);
 });
 
 test('有結果的查詢會回覆可直接完成的 Flex Message', async () => {

@@ -22,8 +22,6 @@ const COMMAND_ALIASES = new Map([
   ['教', 'add'],
   ['q', 'query'],
   ['查', 'query'],
-  ['open', 'open-query'],
-  ['未完成', 'open-query'],
   ['done', 'complete'],
   ['完成', 'complete'],
   ['help', 'help'],

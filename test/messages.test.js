@@ -79,6 +79,7 @@ test('功能選單可預填新增指令並直接執行查詢', () => {
   assert.match(serialized, /action=query/);
   assert.match(serialized, /category=education/);
   assert.match(serialized, /對圖片使用/);
+  assert.doesNotMatch(serialized, /所有未完成事項/);
   assert.equal(FUNCTION_MENU_MESSAGE.type, 'flex');
 });
 
