@@ -108,7 +108,7 @@ const FUNCTION_MENU_MESSAGE = {
         },
         {
           type: 'text',
-          text: '點選功能即可輸入或查詢',
+          text: '手機可點選輸入；桌面版請照指令輸入',
           size: 'xs',
           color: '#777777',
           margin: 'sm',
@@ -183,6 +183,14 @@ const FUNCTION_MENU_MESSAGE = {
           label: '查詢所有未完成事項',
           data: buildQueryPostback({ mode: 'open-query' }),
         }),
+        {
+          type: 'text',
+          text: '也可直接輸入 /help 或 /說明再次開啟本選單。',
+          size: 'xs',
+          color: '#777777',
+          margin: 'lg',
+          wrap: true,
+        },
       ],
     },
   },

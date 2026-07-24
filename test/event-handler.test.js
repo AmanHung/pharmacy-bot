@@ -116,6 +116,16 @@ test('@ 其他成員不會喚出功能選單', async () => {
   assert.equal(replies.length, 0);
 });
 
+test('/help 會回覆與 @ 機器人相同的功能選單', async () => {
+  const { handler, replies } = createFixtures();
+
+  await handler(textEvent('/help'));
+
+  assert.equal(replies.length, 1);
+  assert.equal(replies[0].messages[0].type, 'flex');
+  assert.match(replies[0].messages[0].altText, /功能選單/);
+});
+
 test('新增指令會保存分類資料並以已讀取代成功回覆', async () => {
   let saved;
   const { handler, readReceipts, replies } = createFixtures({

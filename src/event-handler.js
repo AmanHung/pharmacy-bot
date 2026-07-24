@@ -185,7 +185,7 @@ function createEventHandler({
     }
 
     if (command.type === 'help') {
-      return reply(event, HELP_MESSAGE);
+      return reply(event, FUNCTION_MENU_MESSAGE);
     }
 
     if (command.type === 'add') {
