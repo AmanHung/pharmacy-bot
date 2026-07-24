@@ -1,6 +1,7 @@
 const line = require('@line/bot-sdk');
 const { createExpressApp } = require('./app');
 const { loadConfig } = require('./config');
+const { createDailySummarySender } = require('./daily-summary');
 const { createEventHandler } = require('./event-handler');
 const { createFirebaseDatabase } = require('./firebase');
 const { createRecordRepository } = require('./repository');
@@ -20,8 +21,13 @@ function createApplication() {
     allowedGroupIds: config.allowedGroupIds,
     adminUserIds: config.adminUserIds,
   });
+  const sendDailySummary = createDailySummarySender({
+    client,
+    repository,
+    groupId: config.dailySummaryGroupId,
+  });
 
-  return createExpressApp({ config, handleEvent });
+  return createExpressApp({ config, handleEvent, sendDailySummary });
 }
 
 module.exports = { createApplication };

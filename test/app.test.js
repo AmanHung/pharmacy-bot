@@ -13,13 +13,27 @@ function createSignature(body) {
     .digest('base64');
 }
 
-async function startTestServer(handleEvent) {
+async function startTestServer(
+  handleEvent,
+  {
+    cronSecret = 'test-cron-secret',
+    dailySummaryGroupId = 'G-PRODUCTION',
+    sendDailySummary = async () => ({
+      status: 'sent',
+      date: '2026-07-24',
+      recordCount: 2,
+    }),
+  } = {},
+) {
   const app = createExpressApp({
     config: {
       channelAccessToken: 'test-channel-access-token',
       channelSecret: CHANNEL_SECRET,
+      cronSecret,
+      dailySummaryGroupId,
     },
     handleEvent,
+    sendDailySummary,
   });
   const server = app.listen(0);
   await once(server, 'listening');
@@ -93,4 +107,54 @@ test('無效 LINE 簽章會被拒絕', async (context) => {
 
   assert.equal(response.status, 401);
   assert.equal(eventCount, 0);
+});
+
+test('有效排程密鑰會觸發每日交班摘要', async (context) => {
+  let sendCount = 0;
+  const server = await startTestServer(async () => {}, {
+    sendDailySummary: async () => {
+      sendCount += 1;
+      return {
+        status: 'sent',
+        date: '2026-07-24',
+        recordCount: 2,
+      };
+    },
+  });
+  context.after(server.close);
+
+  const response = await fetch(
+    `${server.baseUrl}/api/cron/daily-handover-summary`,
+    {
+      headers: {
+        authorization: 'Bearer test-cron-secret',
+      },
+    },
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    ok: true,
+    status: 'sent',
+    date: '2026-07-24',
+    recordCount: 2,
+  });
+  assert.equal(sendCount, 1);
+});
+
+test('缺少或錯誤排程密鑰時不會推播', async (context) => {
+  let sendCount = 0;
+  const server = await startTestServer(async () => {}, {
+    sendDailySummary: async () => {
+      sendCount += 1;
+    },
+  });
+  context.after(server.close);
+
+  const response = await fetch(
+    `${server.baseUrl}/api/cron/daily-handover-summary`,
+  );
+
+  assert.equal(response.status, 401);
+  assert.equal(sendCount, 0);
 });

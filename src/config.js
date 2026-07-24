@@ -41,6 +41,9 @@ function loadConfig() {
     allowedGroupIds: parseAllowedGroupIds(process.env.ALLOWED_GROUP_IDS),
     adminUserIds: parseAllowedGroupIds(process.env.ADMIN_USER_IDS),
     drugAliases: parseDrugAliases(process.env.DRUG_ALIASES_JSON),
+    dailySummaryGroupId:
+      process.env.DAILY_SUMMARY_GROUP_ID?.trim() || null,
+    cronSecret: process.env.CRON_SECRET?.trim() || null,
   };
 }
 
