@@ -309,3 +309,55 @@ test('相同短編號存在多筆時優先完成最新的未完成紀錄', async
   assert.equal(result.status, 'completed');
   assert.equal(records.completed.createdAt, 1000);
 });
+
+test('expired education records are removed from the scope', async () => {
+  let removedRecords;
+  const snapshot = {
+    forEach(callback) {
+      callback({
+        key: 'expired-course',
+        val: () => ({
+          category: 'education',
+          status: 'open',
+          expiresAt: 1000,
+        }),
+      });
+      callback({
+        key: 'future-course',
+        val: () => ({
+          category: 'education',
+          status: 'open',
+          expiresAt: 3000,
+        }),
+      });
+      callback({
+        key: 'expired-notice',
+        val: () => ({
+          category: 'notice',
+          status: 'open',
+          expiresAt: 1000,
+        }),
+      });
+    },
+  };
+  const recordsReference = {
+    async once() {
+      return snapshot;
+    },
+    async update(updates) {
+      removedRecords = updates;
+    },
+  };
+  const repository = createRecordRepository({
+    ref() {
+      return recordsReference;
+    },
+  });
+
+  await repository.removeExpiredEducationRecords(
+    { type: 'group', id: 'G1' },
+    2000,
+  );
+
+  assert.deepEqual(removedRecords, { 'expired-course': null });
+});

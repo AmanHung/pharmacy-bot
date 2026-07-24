@@ -364,6 +364,10 @@ function createRecordComponents(record, filters, currentTime) {
     metadata.push(`期限 ${formatDate(record.expiresAt)}`);
   }
 
+  if (record.category === 'education' && record.expiresAt) {
+    metadata.push(`上課 ${formatDate(record.expiresAt)}`);
+  }
+
   return {
     type: 'box',
     layout: 'vertical',

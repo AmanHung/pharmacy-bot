@@ -607,3 +607,39 @@ test('when automatic keywords overlap, medication takes priority', async () => {
 
   assert.equal(savedRecord.category, 'medication');
 });
+
+test('education records save an expiry time parsed from their course date', async () => {
+  let savedRecord;
+  const { handler } = createFixtures({
+    async saveRecord(_scope, _eventKey, record) {
+      savedRecord = record;
+      return { record, duplicate: false };
+    },
+  });
+  const event = textEvent('/e 8/4 上課請登記');
+  event.timestamp = Date.UTC(2026, 6, 24, 8, 0, 0);
+
+  await handler(event);
+
+  assert.equal(savedRecord.category, 'education');
+  assert.equal(
+    savedRecord.expiresAt,
+    Date.UTC(2026, 7, 4, 15, 59, 59, 999),
+  );
+});
+
+test('education queries remove expired education records before listing', async () => {
+  let expiryRequest;
+  const { handler } = createFixtures({
+    async removeExpiredEducationRecords(scope, activeAt) {
+      expiryRequest = { scope, activeAt };
+    },
+  });
+
+  await handler(textEvent('/q e'));
+
+  assert.deepEqual(expiryRequest, {
+    scope: { type: 'group', id: 'G1' },
+    activeAt: 1721779200000,
+  });
+});

@@ -66,6 +66,27 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
     return snapshot.exists() ? snapshot.val() : null;
   }
 
+  async function removeExpiredEducationRecords(scope, activeAt) {
+    const snapshot = await recordsRef(scope).once('value');
+    const updates = {};
+
+    snapshot.forEach((childSnapshot) => {
+      const record = childSnapshot.val();
+      if (
+        record.category === 'education' &&
+        record.status === 'open' &&
+        record.expiresAt &&
+        record.expiresAt < activeAt
+      ) {
+        updates[childSnapshot.key] = null;
+      }
+    });
+
+    if (Object.keys(updates).length > 0) {
+      await recordsRef(scope).update(updates);
+    }
+  }
+
   async function listRecords(scope, filters = {}) {
     const snapshot = await recordsRef(scope)
       .orderByChild('createdAt')
@@ -195,6 +216,7 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
     getMessageReference,
     getRecordByShortId,
     listRecords,
+    removeExpiredEducationRecords,
     registerScope,
     saveMessageReference,
     saveRecord,

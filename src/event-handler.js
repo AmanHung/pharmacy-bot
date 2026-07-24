@@ -1,5 +1,5 @@
 const { parseCommand } = require('./commands');
-const { extractNoticeDeadline } = require('./deadlines');
+const { extractEducationDeadline, extractNoticeDeadline } = require('./deadlines');
 const { createShortId } = require('./identifiers');
 const {
   FUNCTION_MENU_MESSAGE,
@@ -176,6 +176,12 @@ function createEventHandler({
 
   async function queryRecords(event, scope, command, page = 0) {
     const currentTime = event.timestamp || now();
+    if (
+      command.category === 'education' &&
+      typeof repository.removeExpiredEducationRecords === 'function'
+    ) {
+      await repository.removeExpiredEducationRecords(scope, currentTime);
+    }
     const filters = {
       category: command.category,
       keyword: command.keyword,
@@ -314,6 +320,7 @@ function createEventHandler({
         return reply(event, formatInvalidCommand(command));
       }
 
+      const createdAt = event.timestamp || now();
       let content = command.content;
       let expiresAt = null;
       if (command.category === 'notice') {
@@ -330,8 +337,10 @@ function createEventHandler({
         content = deadline.content;
         expiresAt = deadline.expiresAt;
       }
+      if (command.category === 'education') {
+        expiresAt = extractEducationDeadline(content, createdAt);
+      }
 
-      const createdAt = event.timestamp || now();
       const eventKey =
         event.webhookEventId || event.message.id || `${createdAt}`;
       const authorName = await getDisplayName(client, event.source);
