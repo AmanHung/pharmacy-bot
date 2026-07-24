@@ -274,12 +274,12 @@ test('回覆含記事本連結的訊息新增教育訓練時會保存連結', as
   assert.equal(savedRecord.sourceUrl, 'https://line.me/R/note/example-note');
 });
 
-test('replied native notes without a captured reference explain how to add a link', async () => {
-  let saved = false;
-  const { handler, replies } = createFixtures({
-    async saveRecord() {
-      saved = true;
-      return { duplicate: false };
+test('replied native notes without a captured reference can be saved as a tag', async () => {
+  let savedRecord;
+  const { handler, replies, readReceipts } = createFixtures({
+    async saveRecord(_scope, _eventKey, record) {
+      savedRecord = record;
+      return { record, duplicate: false };
     },
   });
   const event = textEvent('/e 上課公告');
@@ -287,9 +287,11 @@ test('replied native notes without a captured reference explain how to add a lin
 
   await handler(event);
 
-  assert.equal(saved, false);
-  assert.equal(replies.length, 1);
-  assert.match(replies[0].messages[0].text, /分享連結/);
+  assert.equal(savedRecord.category, 'education');
+  assert.equal(savedRecord.content, '上課公告');
+  assert.equal(savedRecord.sourceReferenceMessageId, undefined);
+  assert.equal(replies.length, 0);
+  assert.equal(readReceipts.length, 1);
 });
 
 test('重複事件不再次回覆', async () => {
