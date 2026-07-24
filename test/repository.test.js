@@ -229,6 +229,9 @@ test('相同短編號存在多筆時優先完成最新的未完成紀錄', async
     orderByChild() {
       return query;
     },
+    limitToLast() {
+      return query;
+    },
     equalTo() {
       return query;
     },

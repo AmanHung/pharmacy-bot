@@ -78,16 +78,19 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
 
   async function findRecordByShortId(scope, shortId) {
     const snapshot = await recordsRef(scope)
-      .orderByChild('shortId')
-      .equalTo(shortId)
+      .orderByChild('createdAt')
+      .limitToLast(MAX_QUERY_CANDIDATES)
       .once('value');
 
     const matches = [];
     snapshot.forEach((childSnapshot) => {
-      matches.push({
-        key: childSnapshot.key,
-        record: childSnapshot.val(),
-      });
+      const record = childSnapshot.val();
+      if (record.shortId === shortId) {
+        matches.push({
+          key: childSnapshot.key,
+          record,
+        });
+      }
     });
 
     matches.sort((left, right) => {
