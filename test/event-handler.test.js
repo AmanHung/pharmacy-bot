@@ -545,3 +545,35 @@ test('群組白名單會忽略未授權群組', async () => {
   await handler(textEvent('/help'));
   assert.equal(replies.length, 0);
 });
+
+test('messages containing medication keywords are recorded silently', async () => {
+  let savedRecord;
+  const { handler, replies, readReceipts } = createFixtures({
+    async saveRecord(_scope, _eventKey, record) {
+      savedRecord = record;
+      return { record, duplicate: false };
+    },
+  });
+
+  await handler(textEvent('缺藥：Cefazolin 目前無庫存'));
+
+  assert.equal(savedRecord.category, 'medication');
+  assert.equal(savedRecord.content, '缺藥：Cefazolin 目前無庫存');
+  assert.equal(replies.length, 0);
+  assert.equal(readReceipts.length, 1);
+});
+
+test('negative medication statements are not recorded automatically', async () => {
+  let saveCount = 0;
+  const { handler } = createFixtures({
+    async saveRecord() {
+      saveCount += 1;
+      return { duplicate: false };
+    },
+  });
+
+  await handler(textEvent('目前沒有缺藥'));
+  await handler(textEvent('本週不用換藥'));
+
+  assert.equal(saveCount, 0);
+});

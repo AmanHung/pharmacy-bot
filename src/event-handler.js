@@ -14,6 +14,15 @@ const { getChatScope, isScopeAllowed } = require('./scope');
 const RECENT_QUERY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const QUERY_RESULT_LIMIT = 100;
 
+function isAutomaticMedicationRecord(text) {
+  const normalized = String(text || '').replace(/\s+/gu, '');
+  if (!/(缺藥|換藥)/u.test(normalized)) {
+    return false;
+  }
+
+  return !/(沒有|無|未|免|不用|不需)(缺藥|換藥)/u.test(normalized);
+}
+
 function extractFirstWebUrl(text) {
   const match = String(text || '').match(/https?:\/\/[^\s<>"']+/iu);
   if (!match) {
@@ -263,9 +272,16 @@ function createEventHandler({
       });
     }
 
-    const command = parseCommand(event.message.text);
+    let command = parseCommand(event.message.text);
     if (command.type === 'ignore') {
-      return null;
+      if (!isAutomaticMedicationRecord(event.message.text)) {
+        return null;
+      }
+      command = {
+        type: 'add',
+        category: 'medication',
+        content: event.message.text.trim(),
+      };
     }
 
     if (command.type === 'invalid') {
