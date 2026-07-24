@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const {
   FUNCTION_MENU_MESSAGE,
   formatAge,
+  formatCompletedRecord,
   formatQueryResult,
   formatSavedRecord,
 } = require('../src/messages');
@@ -62,8 +63,9 @@ test('缺換藥與公告顯示刪除按鈕，交班顯示已處理按鈕', () =>
   assert.match(serialized, /"text":"刪除"/);
   assert.match(JSON.stringify(noticeMessage), /"text":"刪除"/);
   assert.match(JSON.stringify(handoverMessage), /"text":"已處理"/);
-  assert.match(serialized, /"type":"message"/);
-  assert.match(serialized, /\/done M-TEST01/);
+  assert.match(serialized, /"type":"postback"/);
+  assert.match(serialized, /action=complete&id=M-TEST01/);
+  assert.doesNotMatch(serialized, /\/done M-TEST01/);
   assert.doesNotMatch(visibleMetadata, /M-TEST01/);
   assert.doesNotMatch(serialized, /"type":"button"/);
 });
@@ -102,4 +104,19 @@ test('公告包含網址時提供可直接開啟的連結按鈕', () => {
 test('缺換藥與公告不顯示登錄者但交班保留', () => {
   assert.doesNotMatch(formatSavedRecord(record(1)), /王藥師/);
   assert.match(formatSavedRecord(record(1, 'handover')), /王藥師/);
+});
+
+test('處理結果顯示內容但不顯示編碼', () => {
+  const handover = record(1, 'handover');
+  const medication = record(2, 'medication');
+
+  assert.equal(
+    formatCompletedRecord(handover),
+    '已處理：測試內容 1',
+  );
+  assert.equal(
+    formatCompletedRecord(medication),
+    '已刪除：測試內容 2',
+  );
+  assert.doesNotMatch(formatCompletedRecord(handover), /M-TEST01/);
 });

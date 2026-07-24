@@ -4,6 +4,7 @@ const { createShortId } = require('./identifiers');
 const {
   FUNCTION_MENU_MESSAGE,
   JOIN_MESSAGE,
+  formatCompletedRecord,
   formatInvalidCommand,
   formatQueryResult,
 } = require('./messages');
@@ -108,7 +109,12 @@ function createEventHandler({
     );
   }
 
-  async function completeRecord(event, scope, shortId) {
+  async function completeRecord(
+    event,
+    scope,
+    shortId,
+    { announce = false } = {},
+  ) {
     if (!shortId) {
       return reply(event, formatInvalidCommand({ type: 'complete' }));
     }
@@ -127,6 +133,10 @@ function createEventHandler({
 
     if (!record) {
       return reply(event, `找不到編號 ${shortId}。`);
+    }
+
+    if (announce) {
+      return reply(event, formatCompletedRecord(record));
     }
 
     return acknowledgeSilently(event);
@@ -182,7 +192,9 @@ function createEventHandler({
         return null;
       }
       if (action.type === 'complete') {
-        return completeRecord(event, scope, action.shortId);
+        return completeRecord(event, scope, action.shortId, {
+          announce: true,
+        });
       }
       return queryRecords(event, scope, action, action.page);
     }

@@ -301,8 +301,9 @@ test('有結果的查詢會回覆可直接完成的 Flex Message', async () => {
   assert.doesNotMatch(JSON.stringify(message), /王藥師/);
   assert.match(
     JSON.stringify(message),
-    /"text":"\/done M-ABC123"/,
+    /action=complete&id=M-ABC123/,
   );
+  assert.doesNotMatch(JSON.stringify(message), /\/done M-ABC123/);
 });
 
 test('交班查詢保留登錄者姓名', async () => {
@@ -350,12 +351,17 @@ test('完成指令會更新指定事項並以已讀取代成功回覆', async ()
   assert.equal(readReceipts.length, 1);
 });
 
-test('點擊查詢結果按鈕可靜默標記完成', async () => {
+test('點擊查詢結果按鈕會以內容說明已處理事項', async () => {
   let completedId;
   const { handler, replies } = createFixtures({
     async completeRecord(_scope, shortId) {
       completedId = shortId;
-      return { shortId, status: 'completed' };
+      return {
+        shortId,
+        category: 'handover',
+        content: '確認冷藏藥品庫存',
+        status: 'completed',
+      };
     },
   });
 
@@ -368,7 +374,12 @@ test('點擊查詢結果按鈕可靜默標記完成', async () => {
   });
 
   assert.equal(completedId, 'M-ABC123');
-  assert.equal(replies.length, 0);
+  assert.equal(replies.length, 1);
+  assert.equal(
+    replies[0].messages[0].text,
+    '已處理：確認冷藏藥品庫存',
+  );
+  assert.doesNotMatch(replies[0].messages[0].text, /M-ABC123/);
 });
 
 test('設定管理者後拒絕未授權使用者完成事項', async () => {

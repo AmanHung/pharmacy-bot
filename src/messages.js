@@ -1,4 +1,7 @@
-const { buildQueryPostback } = require('./postbacks');
+const {
+  buildCompletePostback,
+  buildQueryPostback,
+} = require('./postbacks');
 
 const CATEGORY_LABELS = {
   handover: '交班',
@@ -314,9 +317,12 @@ function formatSavedRecord(record) {
 
 function formatCompletedRecord(record) {
   if (record.alreadyCompleted) {
-    return `[${record.shortId}] 這筆事項已經完成。`;
+    return `這筆事項已經處理：${cleanText(record.content, 500)}`;
   }
-  return `[${record.shortId}] 已標記為完成。`;
+
+  const actionLabel =
+    record.category === 'handover' ? '已處理' : '已刪除';
+  return `${actionLabel}：${cleanText(record.content, 500)}`;
 }
 
 function createRecordComponents(record, filters, currentTime) {
@@ -388,9 +394,9 @@ function createRecordComponents(record, filters, currentTime) {
           createPillAction(
             actionLabel,
             {
-              type: 'message',
+              type: 'postback',
               label: actionLabel,
-              text: `/done ${record.shortId}`,
+              data: buildCompletePostback(record.shortId),
             },
             actionBackground,
             actionTextColor,
