@@ -46,10 +46,13 @@ test('查詢結果以內容右側的小按鈕送出完成指令', () => {
     { currentTime: 10 * DAY, page: 0 },
   );
   const serialized = JSON.stringify(message);
+  const visibleMetadata =
+    message.contents.body.contents[0].contents[0].text;
 
   assert.match(serialized, /"text":"完成"/);
   assert.match(serialized, /"type":"message"/);
   assert.match(serialized, /\/done M-TEST01/);
+  assert.doesNotMatch(visibleMetadata, /M-TEST01/);
   assert.doesNotMatch(serialized, /"type":"button"/);
 });
 

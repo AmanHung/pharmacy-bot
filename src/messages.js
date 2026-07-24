@@ -264,7 +264,6 @@ function formatCompletedRecord(record) {
 
 function createRecordComponents(record, filters, currentTime) {
   const metadata = [
-    `[${record.shortId}]`,
     getCategoryLabel(record.category),
     formatTimestamp(record.createdAt),
   ];
