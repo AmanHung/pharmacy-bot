@@ -577,3 +577,33 @@ test('negative medication statements are not recorded automatically', async () =
 
   assert.equal(saveCount, 0);
 });
+
+test('handover, education, and notice keywords select their matching categories', async () => {
+  const savedCategories = [];
+  const { handler } = createFixtures({
+    async saveRecord(_scope, _eventKey, record) {
+      savedCategories.push(record.category);
+      return { record, duplicate: false };
+    },
+  });
+
+  await handler(textEvent('夜班交班：待確認住院藥品'));
+  await handler(textEvent('下週上課時間已確認'));
+  await handler(textEvent('重要公告：請同仁閱讀'));
+
+  assert.deepEqual(savedCategories, ['handover', 'education', 'notice']);
+});
+
+test('when automatic keywords overlap, medication takes priority', async () => {
+  let savedRecord;
+  const { handler } = createFixtures({
+    async saveRecord(_scope, _eventKey, record) {
+      savedRecord = record;
+      return { record, duplicate: false };
+    },
+  });
+
+  await handler(textEvent('缺藥公告：請交班同仁注意'));
+
+  assert.equal(savedRecord.category, 'medication');
+});

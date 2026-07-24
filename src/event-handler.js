@@ -14,13 +14,29 @@ const { getChatScope, isScopeAllowed } = require('./scope');
 const RECENT_QUERY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const QUERY_RESULT_LIMIT = 100;
 
-function isAutomaticMedicationRecord(text) {
+function getAutomaticRecordCategory(text) {
   const normalized = String(text || '').replace(/\s+/gu, '');
-  if (!/(缺藥|換藥)/u.test(normalized)) {
+  const categories = [
+    { category: 'medication', keywords: /(缺藥|換藥)/u },
+    { category: 'handover', keywords: /交班/u },
+    { category: 'education', keywords: /(上課|課程)/u },
+    { category: 'notice', keywords: /公告/u },
+  ];
+  const match = categories.find(({ keywords }) => keywords.test(normalized));
+  if (!match) {
     return false;
   }
 
-  return !/(沒有|無|未|免|不用|不需)(缺藥|換藥)/u.test(normalized);
+  if (
+    new RegExp(
+      `(沒有|無|未|免|不用|不需)(?:${match.keywords.source})`,
+      'u',
+    ).test(normalized)
+  ) {
+    return null;
+  }
+
+  return match.category;
 }
 
 function extractFirstWebUrl(text) {
@@ -274,12 +290,13 @@ function createEventHandler({
 
     let command = parseCommand(event.message.text);
     if (command.type === 'ignore') {
-      if (!isAutomaticMedicationRecord(event.message.text)) {
+      const automaticCategory = getAutomaticRecordCategory(event.message.text);
+      if (!automaticCategory) {
         return null;
       }
       command = {
         type: 'add',
-        category: 'medication',
+        category: automaticCategory,
         content: event.message.text.trim(),
       };
     }
