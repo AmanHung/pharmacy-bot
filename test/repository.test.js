@@ -240,19 +240,11 @@ test('相同短編號存在多筆時優先完成最新的未完成紀錄', async
     },
     child(key) {
       return {
-        async transaction(update) {
-          const nextRecord = update(records[key]);
-          if (nextRecord === undefined) {
-            return {
-              committed: false,
-              snapshot: { val: () => records[key] },
-            };
-          }
+        async update(updates) {
           updatedKey = key;
-          records[key] = nextRecord;
-          return {
-            committed: true,
-            snapshot: { val: () => records[key] },
+          records[key] = {
+            ...records[key],
+            ...updates,
           };
         },
       };

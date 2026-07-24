@@ -118,37 +118,33 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
       status: match.record.status,
     });
 
-    const recordRef = recordsRef(scope).child(match.key);
-    const transaction = await recordRef.transaction((currentRecord) => {
-      if (!currentRecord || currentRecord.status !== 'open') {
-        return undefined;
-      }
-
+    if (match.record.status !== 'open') {
       return {
-        ...currentRecord,
-        status: 'completed',
-        completedAt: completion.completedAt,
-        completedByUserId: completion.completedByUserId,
-        completedByName: completion.completedByName,
-        updatedAt: completion.completedAt,
-      };
-    });
-
-    console.info('Completion transaction finished', {
-      shortId,
-      recordKey: match.key,
-      committed: transaction.committed,
-      status: transaction.snapshot.val()?.status || null,
-    });
-
-    if (!transaction.committed) {
-      return {
-        ...(transaction.snapshot.val() || match.record),
+        ...match.record,
         alreadyCompleted: true,
       };
     }
 
-    return transaction.snapshot.val();
+    const recordRef = recordsRef(scope).child(match.key);
+    const updates = {
+      status: 'completed',
+      completedAt: completion.completedAt,
+      completedByUserId: completion.completedByUserId,
+      completedByName: completion.completedByName,
+      updatedAt: completion.completedAt,
+    };
+
+    await recordRef.update(updates);
+    console.info('Completion update finished', {
+      shortId,
+      recordKey: match.key,
+      status: updates.status,
+    });
+
+    return {
+      ...match.record,
+      ...updates,
+    };
   }
 
   async function withdrawRecordByMessageId(scope, messageId, withdrawnAt) {
