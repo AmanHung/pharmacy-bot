@@ -461,6 +461,29 @@ test('點擊查詢結果按鈕會以內容說明已處理事項', async () => {
   assert.doesNotMatch(replies[0].messages[0].text, /M-ABC123/);
 });
 
+test('deleting a non-handover record from a query card is silent', async () => {
+  const { handler, replies } = createFixtures({
+    async completeRecord(_scope, shortId) {
+      return {
+        shortId,
+        category: 'notice',
+        content: '測試公告',
+        status: 'completed',
+      };
+    },
+  });
+
+  await handler({
+    type: 'postback',
+    replyToken: 'reply-token',
+    timestamp: 1721779200000,
+    source: { type: 'group', groupId: 'G1', userId: 'U1' },
+    postback: { data: 'action=complete&id=N-ABC123' },
+  });
+
+  assert.equal(replies.length, 0);
+});
+
 test('點擊看原圖會以引用訊息帶回原始圖片', async () => {
   const { handler, replies } = createFixtures({
     async getRecordByShortId(_scope, shortId) {

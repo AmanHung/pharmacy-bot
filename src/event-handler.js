@@ -167,7 +167,7 @@ function createEventHandler({
       return reply(event, `找不到編號 ${shortId}。`);
     }
 
-    if (announce) {
+    if (announce && record.category === 'handover') {
       return reply(event, formatCompletedRecord(record));
     }
 
