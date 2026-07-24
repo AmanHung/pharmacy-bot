@@ -73,7 +73,11 @@ test('功能選單可預填新增指令並直接執行查詢', () => {
 
   assert.match(serialized, /"inputOption":"openKeyboard"/);
   assert.match(serialized, /"fillInText":"\/m "/);
+  assert.match(serialized, /"fillInText":"\/e "/);
+  assert.match(serialized, /"fillInText":"\/s "/);
   assert.match(serialized, /action=query/);
+  assert.match(serialized, /category=education/);
+  assert.match(serialized, /category=safety/);
   assert.equal(FUNCTION_MENU_MESSAGE.type, 'flex');
 });
 

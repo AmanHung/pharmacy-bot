@@ -6,6 +6,10 @@ const CATEGORY_ALIASES = new Map([
   ['缺', 'medication'],
   ['n', 'notice'],
   ['公', 'notice'],
+  ['e', 'education'],
+  ['教', 'education'],
+  ['s', 'safety'],
+  ['安', 'safety'],
 ]);
 
 const COMMAND_ALIASES = new Map([
@@ -16,6 +20,10 @@ const COMMAND_ALIASES = new Map([
   ['缺', 'add'],
   ['n', 'add'],
   ['公', 'add'],
+  ['e', 'add'],
+  ['教', 'add'],
+  ['s', 'add'],
+  ['安', 'add'],
   ['q', 'query'],
   ['查', 'query'],
   ['open', 'open-query'],

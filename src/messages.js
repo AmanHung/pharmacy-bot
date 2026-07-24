@@ -4,6 +4,8 @@ const CATEGORY_LABELS = {
   handover: '交班',
   medication: '缺換藥',
   notice: '公告',
+  education: '教育訓練',
+  safety: '藥品安全',
 };
 
 const QUERY_PAGE_SIZE = 5;
@@ -16,10 +18,14 @@ const HELP_MESSAGE = [
   '/m 內容　新增缺換藥',
   '/n 內容　新增公告',
   '/n 內容 #到期 YYYY-MM-DD　新增有期限的公告',
+  '/e 內容　新增教育訓練',
+  '/s 內容　新增藥品安全',
   '/q　　　 查詢所有資訊',
   '/q h　　 查詢最近 7 天交班',
   '/q m　　 查詢所有缺換藥',
   '/q n　　 查詢所有公告',
+  '/q e　　 查詢所有教育訓練',
+  '/q s　　 查詢所有藥品安全',
   '/q 關鍵字　搜尋所有資訊',
   '/open　　 查詢所有未完成事項',
   '/open 關鍵字　搜尋未完成事項',
@@ -132,21 +138,38 @@ const FUNCTION_MENU_MESSAGE = {
           color: '#777777',
           weight: 'bold',
         },
-        createMenuRow(
-          '交班資訊',
-          '輸入 /h',
-          createComposeAction('/h', '輸入交班'),
-        ),
-        createMenuRow(
-          '缺換藥資訊',
-          '輸入 /m',
-          createComposeAction('/m', '輸入缺換藥'),
-        ),
-        createMenuRow(
-          '公告資訊',
-          '輸入 /n',
-          createComposeAction('/n', '輸入公告'),
-        ),
+        {
+          type: 'box',
+          layout: 'vertical',
+          spacing: 'xs',
+          contents: [
+            createMenuRow(
+              '交班資訊',
+              '輸入 /h',
+              createComposeAction('/h', '輸入交班'),
+            ),
+            createMenuRow(
+              '缺換藥資訊',
+              '輸入 /m',
+              createComposeAction('/m', '輸入缺換藥'),
+            ),
+            createMenuRow(
+              '公告資訊',
+              '輸入 /n',
+              createComposeAction('/n', '輸入公告'),
+            ),
+            createMenuRow(
+              '教育訓練',
+              '輸入 /e',
+              createComposeAction('/e', '輸入教育訓練'),
+            ),
+            createMenuRow(
+              '藥品安全',
+              '輸入 /s',
+              createComposeAction('/s', '輸入藥品安全'),
+            ),
+          ],
+        },
         {
           type: 'separator',
           margin: 'md',
@@ -159,35 +182,58 @@ const FUNCTION_MENU_MESSAGE = {
           weight: 'bold',
           margin: 'md',
         },
-        createMenuRow('最近 7 天交班', '查詢', {
-          type: 'postback',
-          label: '查詢最近 7 天交班',
-          data: buildQueryPostback({
-            mode: 'query',
-            category: 'handover',
-          }),
-        }),
-        createMenuRow('所有缺換藥', '查詢', {
-          type: 'postback',
-          label: '查詢所有缺換藥',
-          data: buildQueryPostback({
-            mode: 'query',
-            category: 'medication',
-          }),
-        }),
-        createMenuRow('所有公告', '查詢', {
-          type: 'postback',
-          label: '查詢所有公告',
-          data: buildQueryPostback({
-            mode: 'query',
-            category: 'notice',
-          }),
-        }),
-        createMenuRow('所有未完成事項', '查詢', {
-          type: 'postback',
-          label: '查詢所有未完成事項',
-          data: buildQueryPostback({ mode: 'open-query' }),
-        }),
+        {
+          type: 'box',
+          layout: 'vertical',
+          spacing: 'xs',
+          contents: [
+            createMenuRow('最近 7 天交班', '查詢', {
+              type: 'postback',
+              label: '查詢最近 7 天交班',
+              data: buildQueryPostback({
+                mode: 'query',
+                category: 'handover',
+              }),
+            }),
+            createMenuRow('所有缺換藥', '查詢', {
+              type: 'postback',
+              label: '查詢所有缺換藥',
+              data: buildQueryPostback({
+                mode: 'query',
+                category: 'medication',
+              }),
+            }),
+            createMenuRow('所有公告', '查詢', {
+              type: 'postback',
+              label: '查詢所有公告',
+              data: buildQueryPostback({
+                mode: 'query',
+                category: 'notice',
+              }),
+            }),
+            createMenuRow('所有教育訓練', '查詢', {
+              type: 'postback',
+              label: '查詢所有教育訓練',
+              data: buildQueryPostback({
+                mode: 'query',
+                category: 'education',
+              }),
+            }),
+            createMenuRow('所有藥品安全', '查詢', {
+              type: 'postback',
+              label: '查詢所有藥品安全',
+              data: buildQueryPostback({
+                mode: 'query',
+                category: 'safety',
+              }),
+            }),
+            createMenuRow('所有未完成事項', '查詢', {
+              type: 'postback',
+              label: '查詢所有未完成事項',
+              data: buildQueryPostback({ mode: 'open-query' }),
+            }),
+          ],
+        },
         {
           type: 'text',
           text: '也可直接輸入 /help 或 /說明再次開啟本選單。',
@@ -459,6 +505,8 @@ function formatInvalidCommand(command) {
       handover: 'h',
       medication: 'm',
       notice: 'n',
+      education: 'e',
+      safety: 's',
     }[command.category];
     return `請在指令後輸入內容，例如：/${letter} 需要記錄的資訊`;
   }

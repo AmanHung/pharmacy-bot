@@ -1,4 +1,10 @@
-const VALID_CATEGORIES = new Set(['handover', 'medication', 'notice']);
+const VALID_CATEGORIES = new Set([
+  'handover',
+  'medication',
+  'notice',
+  'education',
+  'safety',
+]);
 const MAX_POSTBACK_KEYWORD_LENGTH = 120;
 
 function buildCompletePostback(shortId) {

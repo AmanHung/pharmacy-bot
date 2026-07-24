@@ -2,6 +2,8 @@ const CATEGORY_PREFIXES = {
   handover: 'H',
   medication: 'M',
   notice: 'N',
+  education: 'E',
+  safety: 'S',
 };
 
 function createShortId(category, eventKey, timestamp = Date.now()) {
