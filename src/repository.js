@@ -25,6 +25,11 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
     return database.ref(`pharmacy_scopes/${scopeKey}/records`);
   }
 
+  function messageReferencesRef(scope) {
+    const scopeKey = toFirebaseScopeKey(scope);
+    return database.ref(`pharmacy_scopes/${scopeKey}/message_references`);
+  }
+
   async function registerScope(scope, metadata = {}) {
     await scopeRef(scope).child('metadata').update({
       sourceType: scope.type,
@@ -48,6 +53,17 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
       record: transaction.snapshot.val(),
       duplicate: !transaction.committed,
     };
+  }
+
+  async function saveMessageReference(scope, messageId, reference) {
+    await messageReferencesRef(scope).child(messageId).set(reference);
+  }
+
+  async function getMessageReference(scope, messageId) {
+    const snapshot = await messageReferencesRef(scope)
+      .child(messageId)
+      .once('value');
+    return snapshot.exists() ? snapshot.val() : null;
   }
 
   async function listRecords(scope, filters = {}) {
@@ -120,6 +136,11 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
     return matches[0] || null;
   }
 
+  async function getRecordByShortId(scope, shortId) {
+    const match = await findRecordByShortId(scope, shortId);
+    return match?.record || null;
+  }
+
   async function completeRecord(scope, shortId, completion) {
     const match = await findRecordByShortId(scope, shortId);
     if (!match) {
@@ -171,8 +192,11 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
 
   return {
     completeRecord,
+    getMessageReference,
+    getRecordByShortId,
     listRecords,
     registerScope,
+    saveMessageReference,
     saveRecord,
     withdrawRecordByMessageId,
   };

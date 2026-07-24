@@ -161,6 +161,19 @@ function createEventHandler({
     );
   }
 
+  async function showSourceMessage(event, scope, shortId) {
+    const record = await repository.getRecordByShortId(scope, shortId);
+    if (!record?.sourceQuoteToken) {
+      return reply(event, '這筆資訊沒有可返回的原始圖片。');
+    }
+
+    return reply(event, {
+      type: 'text',
+      text: `原始圖片：${record.content}`,
+      quoteToken: record.sourceQuoteToken,
+    });
+  }
+
   return async function handleEvent(event) {
     const scope = getChatScope(event.source);
     if (!isScopeAllowed(scope, allowedGroupIds)) {
@@ -196,10 +209,33 @@ function createEventHandler({
           announce: true,
         });
       }
+      if (action.type === 'view-source') {
+        return showSourceMessage(event, scope, action.shortId);
+      }
       return queryRecords(event, scope, action, action.page);
     }
 
-    if (event.type !== 'message' || event.message?.type !== 'text') {
+    if (event.type !== 'message') {
+      return null;
+    }
+
+    if (event.message?.type === 'image') {
+      if (
+        event.message.id &&
+        event.message.quoteToken &&
+        typeof repository.saveMessageReference === 'function'
+      ) {
+        await repository.saveMessageReference(scope, event.message.id, {
+          type: 'image',
+          quoteToken: event.message.quoteToken,
+          authorUserId: event.source?.userId || null,
+          createdAt: event.timestamp || now(),
+        });
+      }
+      return null;
+    }
+
+    if (event.message?.type !== 'text') {
       return null;
     }
 
@@ -246,6 +282,12 @@ function createEventHandler({
       const eventKey =
         event.webhookEventId || event.message.id || `${createdAt}`;
       const authorName = await getDisplayName(client, event.source);
+      const quotedMessageId = event.message.quotedMessageId || null;
+      const sourceReference =
+        quotedMessageId &&
+        typeof repository.getMessageReference === 'function'
+          ? await repository.getMessageReference(scope, quotedMessageId)
+          : null;
       const record = {
         shortId: createShortId(command.category, eventKey, createdAt),
         category: command.category,
@@ -259,6 +301,13 @@ function createEventHandler({
         sourceId: scope.id,
         sourceMessageId: event.message.id || null,
         webhookEventId: event.webhookEventId || null,
+        ...(sourceReference?.type === 'image' && sourceReference.quoteToken
+          ? {
+              sourceReferenceMessageId: quotedMessageId,
+              sourceReferenceType: 'image',
+              sourceQuoteToken: sourceReference.quoteToken,
+            }
+          : {}),
         ...(expiresAt ? { expiresAt } : {}),
       };
       const result = await repository.saveRecord(scope, eventKey, record);

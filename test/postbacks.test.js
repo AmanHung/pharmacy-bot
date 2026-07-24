@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const {
   buildCompletePostback,
   buildQueryPostback,
+  buildViewSourcePostback,
   parsePostback,
 } = require('../src/postbacks');
 
@@ -11,6 +12,14 @@ test('完成按鈕資料可還原為完成動作', () => {
   assert.deepEqual(parsePostback(data), {
     type: 'complete',
     shortId: 'M-ABC123',
+  });
+});
+
+test('查看原圖按鈕資料可還原為來源動作', () => {
+  const data = buildViewSourcePostback('N-ABC123');
+  assert.deepEqual(parsePostback(data), {
+    type: 'view-source',
+    shortId: 'N-ABC123',
   });
 });
 

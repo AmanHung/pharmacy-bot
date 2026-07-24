@@ -78,6 +78,7 @@ test('功能選單可預填新增指令並直接執行查詢', () => {
   assert.match(serialized, /"fillInText":"\/e "/);
   assert.match(serialized, /action=query/);
   assert.match(serialized, /category=education/);
+  assert.match(serialized, /對圖片使用/);
   assert.equal(FUNCTION_MENU_MESSAGE.type, 'flex');
 });
 
@@ -99,6 +100,20 @@ test('公告包含網址時提供可直接開啟的連結按鈕', () => {
     serialized,
     /"desktop":"https:\/\/example.com\/notes\/123"/,
   );
+});
+
+test('引用圖片的資訊會提供查看原圖按鈕', () => {
+  const noticeRecord = record(5, 'notice');
+  noticeRecord.sourceQuoteToken = 'quote-token-image';
+  const message = formatQueryResult(
+    [noticeRecord],
+    { type: 'query', category: 'notice', keyword: '' },
+    { currentTime: 10 * DAY, page: 0 },
+  );
+  const serialized = JSON.stringify(message);
+
+  assert.match(serialized, /"text":"看原圖"/);
+  assert.match(serialized, /action=view-source&id=M-TEST05/);
 });
 
 test('缺換藥與公告不顯示登錄者但交班保留', () => {

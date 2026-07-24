@@ -35,6 +35,13 @@ function createFixtures(repositoryOverrides = {}, handlerOptions = {}) {
     async completeRecord() {
       return null;
     },
+    async getRecordByShortId() {
+      return null;
+    },
+    async getMessageReference() {
+      return null;
+    },
+    async saveMessageReference() {},
     async withdrawRecordByMessageId() {},
     ...repositoryOverrides,
   };
@@ -204,6 +211,53 @@ test('公告可設定截止日期且成功時不回覆', async () => {
   assert.equal(saved.expiresAt, Date.UTC(2024, 6, 31, 15, 59, 59, 999));
   assert.equal(replies.length, 0);
   assert.equal(readReceipts.length, 1);
+});
+
+test('回覆圖片新增公告時會保存原圖引用資訊', async () => {
+  let savedReference;
+  let savedRecord;
+  const { handler } = createFixtures({
+    async saveMessageReference(scope, messageId, reference) {
+      savedReference = { scope, messageId, reference };
+    },
+    async getMessageReference(_scope, messageId) {
+      assert.equal(messageId, 'image-message-1');
+      return savedReference.reference;
+    },
+    async saveRecord(_scope, _eventKey, record) {
+      savedRecord = record;
+      return { record, duplicate: false };
+    },
+  });
+
+  await handler({
+    type: 'message',
+    timestamp: 1721779199000,
+    source: { type: 'group', groupId: 'G1', userId: 'U1' },
+    message: {
+      type: 'image',
+      id: 'image-message-1',
+      quoteToken: 'image-quote-token',
+    },
+  });
+
+  const event = textEvent('/n 請參考圖片說明');
+  event.message.quotedMessageId = 'image-message-1';
+  await handler(event);
+
+  assert.deepEqual(savedReference, {
+    scope: { type: 'group', id: 'G1' },
+    messageId: 'image-message-1',
+    reference: {
+      type: 'image',
+      quoteToken: 'image-quote-token',
+      authorUserId: 'U1',
+      createdAt: 1721779199000,
+    },
+  });
+  assert.equal(savedRecord.sourceReferenceMessageId, 'image-message-1');
+  assert.equal(savedRecord.sourceReferenceType, 'image');
+  assert.equal(savedRecord.sourceQuoteToken, 'image-quote-token');
 });
 
 test('重複事件不再次回覆', async () => {
@@ -380,6 +434,34 @@ test('點擊查詢結果按鈕會以內容說明已處理事項', async () => {
     '已處理：確認冷藏藥品庫存',
   );
   assert.doesNotMatch(replies[0].messages[0].text, /M-ABC123/);
+});
+
+test('點擊看原圖會以引用訊息帶回原始圖片', async () => {
+  const { handler, replies } = createFixtures({
+    async getRecordByShortId(_scope, shortId) {
+      assert.equal(shortId, 'N-ABC123');
+      return {
+        shortId,
+        category: 'notice',
+        content: '請參考圖片說明',
+        sourceQuoteToken: 'image-quote-token',
+      };
+    },
+  });
+
+  await handler({
+    type: 'postback',
+    replyToken: 'reply-token',
+    timestamp: 1721779200000,
+    source: { type: 'group', groupId: 'G1', userId: 'U1' },
+    postback: { data: 'action=view-source&id=N-ABC123' },
+  });
+
+  assert.deepEqual(replies[0].messages[0], {
+    type: 'text',
+    text: '原始圖片：請參考圖片說明',
+    quoteToken: 'image-quote-token',
+  });
 });
 
 test('設定管理者後拒絕未授權使用者完成事項', async () => {

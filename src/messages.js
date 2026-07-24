@@ -1,6 +1,7 @@
 const {
   buildCompletePostback,
   buildQueryPostback,
+  buildViewSourcePostback,
 } = require('./postbacks');
 
 const CATEGORY_LABELS = {
@@ -40,6 +41,7 @@ const HELP_MESSAGE = [
   '/help　　 顯示說明',
   '',
   '查詢結果可直接點右側按鈕處理。',
+  '圖片公告：對圖片使用「回覆」，再輸入 /n 公告內容。',
   '新增或處理成功時不另行回覆，以減少群組訊息。',
   '一般群組聊天不會被保存。',
 ].join('\n');
@@ -230,7 +232,10 @@ const FUNCTION_MENU_MESSAGE = {
         },
         {
           type: 'text',
-          text: '也可直接輸入 /help 或 /說明再次開啟本選單。',
+          text: [
+            '圖片公告：對圖片使用「回覆」，再輸入 /n 公告內容。',
+            '也可直接輸入 /help 或 /說明再次開啟本選單。',
+          ].join('\n'),
           size: 'xs',
           color: '#777777',
           margin: 'lg',
@@ -388,6 +393,15 @@ function createRecordComponents(record, filters, currentTime) {
                   altUri: {
                     desktop: linkUrl,
                   },
+                }),
+              ]
+            : []),
+          ...(record.sourceQuoteToken
+            ? [
+                createPillAction('看原圖', {
+                  type: 'postback',
+                  label: '查看原始圖片',
+                  data: buildViewSourcePostback(record.shortId),
                 }),
               ]
             : []),

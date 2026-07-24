@@ -13,6 +13,13 @@ function buildCompletePostback(shortId) {
   }).toString();
 }
 
+function buildViewSourcePostback(shortId) {
+  return new URLSearchParams({
+    action: 'view-source',
+    id: shortId,
+  }).toString();
+}
+
 function buildQueryPostback({
   mode = 'query',
   type,
@@ -53,6 +60,11 @@ function parsePostback(data) {
     return shortId ? { type: 'complete', shortId } : null;
   }
 
+  if (action === 'view-source') {
+    const shortId = (parameters.get('id') || '').trim().toUpperCase();
+    return shortId ? { type: 'view-source', shortId } : null;
+  }
+
   if (action !== 'query') {
     return null;
   }
@@ -72,5 +84,6 @@ function parsePostback(data) {
 module.exports = {
   buildCompletePostback,
   buildQueryPostback,
+  buildViewSourcePostback,
   parsePostback,
 };
