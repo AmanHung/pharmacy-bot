@@ -108,8 +108,15 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
   async function completeRecord(scope, shortId, completion) {
     const match = await findRecordByShortId(scope, shortId);
     if (!match) {
+      console.info('Completion lookup found no record', { shortId });
       return null;
     }
+
+    console.info('Completion lookup selected record', {
+      shortId,
+      recordKey: match.key,
+      status: match.record.status,
+    });
 
     const recordRef = recordsRef(scope).child(match.key);
     const transaction = await recordRef.transaction((currentRecord) => {
@@ -125,6 +132,13 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
         completedByName: completion.completedByName,
         updatedAt: completion.completedAt,
       };
+    });
+
+    console.info('Completion transaction finished', {
+      shortId,
+      recordKey: match.key,
+      committed: transaction.committed,
+      status: transaction.snapshot.val()?.status || null,
     });
 
     if (!transaction.committed) {
