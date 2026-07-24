@@ -321,13 +321,15 @@ function formatSavedRecord(record) {
 }
 
 function formatCompletedRecord(record) {
+  const completedByName = cleanText(record.completedByName || '同仁', 80);
+
   if (record.alreadyCompleted) {
-    return `這筆事項已經處理：${cleanText(record.content, 500)}`;
+    return `這筆事項已由 ${completedByName} 處理：${cleanText(record.content, 500)}`;
   }
 
   const actionLabel =
     record.category === 'handover' ? '已處理' : '已刪除';
-  return `${actionLabel}：${cleanText(record.content, 500)}`;
+  return `${completedByName}${actionLabel}：${cleanText(record.content, 500)}`;
 }
 
 function createRecordComponents(record, filters, currentTime) {

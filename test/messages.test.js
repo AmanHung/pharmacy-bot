@@ -124,14 +124,16 @@ test('缺換藥與公告不顯示登錄者但交班保留', () => {
 test('處理結果顯示內容但不顯示編碼', () => {
   const handover = record(1, 'handover');
   const medication = record(2, 'medication');
+  handover.completedByName = '王藥師';
+  medication.completedByName = '李藥師';
 
   assert.equal(
     formatCompletedRecord(handover),
-    '已處理：測試內容 1',
+    '王藥師已處理：測試內容 1',
   );
   assert.equal(
     formatCompletedRecord(medication),
-    '已刪除：測試內容 2',
+    '李藥師已刪除：測試內容 2',
   );
   assert.doesNotMatch(formatCompletedRecord(handover), /M-TEST01/);
 });

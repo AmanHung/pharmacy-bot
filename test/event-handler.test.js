@@ -414,6 +414,7 @@ test('點擊查詢結果按鈕會以內容說明已處理事項', async () => {
         shortId,
         category: 'handover',
         content: '確認冷藏藥品庫存',
+        completedByName: '王藥師',
         status: 'completed',
       };
     },
@@ -431,7 +432,7 @@ test('點擊查詢結果按鈕會以內容說明已處理事項', async () => {
   assert.equal(replies.length, 1);
   assert.equal(
     replies[0].messages[0].text,
-    '已處理：確認冷藏藥品庫存',
+    '王藥師已處理：確認冷藏藥品庫存',
   );
   assert.doesNotMatch(replies[0].messages[0].text, /M-ABC123/);
 });
