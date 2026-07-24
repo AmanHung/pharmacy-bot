@@ -115,13 +115,13 @@ test('加入群組時回覆簡短功能介紹', async () => {
     text: [
       '大家好，我是藥劑科資訊小幫手。',
       '可協助整理及查詢交班、缺換藥、公告與教育訓練資訊。',
-      '＠我或輸入 /help，即可開啟功能選單。',
+      '輸入 /help，即可開啟功能選單。',
       '一般聊天不會被記錄，請安心使用。',
     ].join('\n'),
   });
 });
 
-test('@ 機器人時回覆可操作的功能選單', async () => {
+test('@ 機器人時不自動回覆功能選單', async () => {
   const { handler, replies } = createFixtures();
   const event = textEvent('@藥劑科機器人');
   event.message.mention = {
@@ -138,32 +138,10 @@ test('@ 機器人時回覆可操作的功能選單', async () => {
 
   await handler(event);
 
-  assert.equal(replies.length, 1);
-  assert.equal(replies[0].messages[0].type, 'flex');
-  assert.match(replies[0].messages[0].altText, /功能選單/);
-});
-
-test('@ 其他成員不會喚出功能選單', async () => {
-  const { handler, replies } = createFixtures();
-  const event = textEvent('@王藥師 明天開會');
-  event.message.mention = {
-    mentionees: [
-      {
-        index: 0,
-        length: 4,
-        type: 'user',
-        userId: 'U2',
-        isSelf: false,
-      },
-    ],
-  };
-
-  await handler(event);
-
   assert.equal(replies.length, 0);
 });
 
-test('/help 會回覆與 @ 機器人相同的功能選單', async () => {
+test('/help 會回覆功能選單', async () => {
   const { handler, replies } = createFixtures();
 
   await handler(textEvent('/help'));

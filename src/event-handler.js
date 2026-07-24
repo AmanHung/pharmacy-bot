@@ -29,14 +29,6 @@ function extractFirstWebUrl(text) {
   }
 }
 
-function isBotMentioned(message) {
-  return (
-    message?.mention?.mentionees?.some(
-      (mention) => mention.type === 'user' && mention.isSelf === true,
-    ) || false
-  );
-}
-
 async function getDisplayName(client, source) {
   if (!source?.userId) {
     return '未知同仁';
@@ -271,10 +263,6 @@ function createEventHandler({
       });
     }
 
-    if (isBotMentioned(event.message)) {
-      return reply(event, FUNCTION_MENU_MESSAGE);
-    }
-
     const command = parseCommand(event.message.text);
     if (command.type === 'ignore') {
       return null;
@@ -364,5 +352,4 @@ module.exports = {
   createEventHandler,
   getDisplayName,
   getGroupName,
-  isBotMentioned,
 };
