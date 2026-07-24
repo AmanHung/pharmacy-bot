@@ -39,17 +39,29 @@ test('查詢結果每頁五筆並提供下一頁', () => {
   assert.doesNotMatch(serialized, /測試內容 5/);
 });
 
-test('查詢結果以內容右側的小按鈕送出完成指令', () => {
-  const message = formatQueryResult(
+test('缺換藥與公告顯示刪除按鈕，交班顯示已處理按鈕', () => {
+  const medicationMessage = formatQueryResult(
     [record(1)],
     { type: 'query', category: 'medication', keyword: '' },
     { currentTime: 10 * DAY, page: 0 },
   );
-  const serialized = JSON.stringify(message);
+  const noticeMessage = formatQueryResult(
+    [record(2, 'notice')],
+    { type: 'query', category: 'notice', keyword: '' },
+    { currentTime: 10 * DAY, page: 0 },
+  );
+  const handoverMessage = formatQueryResult(
+    [record(3, 'handover')],
+    { type: 'query', category: 'handover', keyword: '' },
+    { currentTime: 10 * DAY, page: 0 },
+  );
+  const serialized = JSON.stringify(medicationMessage);
   const visibleMetadata =
-    message.contents.body.contents[0].contents[0].text;
+    medicationMessage.contents.body.contents[0].contents[0].text;
 
-  assert.match(serialized, /"text":"完成"/);
+  assert.match(serialized, /"text":"刪除"/);
+  assert.match(JSON.stringify(noticeMessage), /"text":"刪除"/);
+  assert.match(JSON.stringify(handoverMessage), /"text":"已處理"/);
   assert.match(serialized, /"type":"message"/);
   assert.match(serialized, /\/done M-TEST01/);
   assert.doesNotMatch(visibleMetadata, /M-TEST01/);

@@ -23,15 +23,20 @@ const HELP_MESSAGE = [
   '/q 關鍵字　搜尋所有資訊',
   '/open　　 查詢所有未完成事項',
   '/open 關鍵字　搜尋未完成事項',
-  '/done 編號　完成事項',
+  '/done 編號　將事項移出待辦清單',
   '/help　　 顯示說明',
   '',
-  '查詢結果可直接點「標記完成」。',
-  '新增或完成成功時不另行回覆，以減少群組訊息。',
+  '查詢結果可直接點右側按鈕處理。',
+  '新增或處理成功時不另行回覆，以減少群組訊息。',
   '一般群組聊天不會被保存。',
 ].join('\n');
 
-function createPillAction(label, action, color = '#E8F0FE') {
+function createPillAction(
+  label,
+  action,
+  color = '#E8F0FE',
+  textColor = '#1A5FB4',
+) {
   return {
     type: 'box',
     layout: 'vertical',
@@ -48,7 +53,7 @@ function createPillAction(label, action, color = '#E8F0FE') {
         type: 'text',
         text: label,
         size: 'xs',
-        color: '#1A5FB4',
+        color: textColor,
         weight: 'bold',
         align: 'center',
       },
@@ -263,6 +268,12 @@ function formatCompletedRecord(record) {
 }
 
 function createRecordComponents(record, filters, currentTime) {
+  const actionLabel =
+    record.category === 'handover' ? '已處理' : '刪除';
+  const actionBackground =
+    record.category === 'handover' ? '#E8F5E9' : '#FDECEC';
+  const actionTextColor =
+    record.category === 'handover' ? '#2E7D32' : '#C62828';
   const metadata = [
     getCategoryLabel(record.category),
     formatTimestamp(record.createdAt),
@@ -307,13 +318,14 @@ function createRecordComponents(record, filters, currentTime) {
             flex: 1,
           },
           createPillAction(
-            '完成',
+            actionLabel,
             {
               type: 'message',
-              label: `完成 ${record.shortId}`,
+              label: actionLabel,
               text: `/done ${record.shortId}`,
             },
-            '#E8F5E9',
+            actionBackground,
+            actionTextColor,
           ),
         ],
       },
