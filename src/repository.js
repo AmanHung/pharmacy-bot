@@ -47,6 +47,11 @@ function createRecordRepository(database) {
         (record) =>
           !filters.category || record.category === filters.category,
       )
+      .filter(
+        (record) =>
+          filters.createdSince === undefined ||
+          record.createdAt >= filters.createdSince,
+      )
       .filter((record) => {
         if (!keyword) {
           return true;

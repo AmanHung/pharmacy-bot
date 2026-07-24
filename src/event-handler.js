@@ -9,6 +9,9 @@ const {
 } = require('./messages');
 const { getChatScope, isScopeAllowed } = require('./scope');
 
+const RECENT_QUERY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+const QUERY_RESULT_LIMIT = 100;
+
 async function getDisplayName(client, source) {
   if (!source?.userId) {
     return '未知同仁';
@@ -123,12 +126,18 @@ function createEventHandler({
       return reply(event, formatSavedRecord(record));
     }
 
-    if (command.type === 'query') {
-      const records = await repository.listRecords(scope, {
+    if (command.type === 'query' || command.type === 'open-query') {
+      const filters = {
         category: command.category,
         keyword: command.keyword,
-        limit: 10,
-      });
+        limit: QUERY_RESULT_LIMIT,
+      };
+      if (command.type === 'query' && command.category === 'handover') {
+        filters.createdSince =
+          (event.timestamp || now()) - RECENT_QUERY_WINDOW_MS;
+      }
+
+      const records = await repository.listRecords(scope, filters);
       return reply(event, formatQueryResult(records, command));
     }
 

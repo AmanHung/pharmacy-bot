@@ -32,6 +32,19 @@ test('解析分類及關鍵字查詢', () => {
   });
 });
 
+test('解析未完成事項查詢', () => {
+  assert.deepEqual(parseCommand('/open m cefazolin'), {
+    type: 'open-query',
+    category: 'medication',
+    keyword: 'cefazolin',
+  });
+  assert.deepEqual(parseCommand('/未完成 交班'), {
+    type: 'open-query',
+    category: null,
+    keyword: '交班',
+  });
+});
+
 test('解析完成與說明指令', () => {
   assert.deepEqual(parseCommand('/done m-abc123'), {
     type: 'complete',

@@ -10,11 +10,13 @@ const HELP_MESSAGE = [
   '/h 內容　新增交班',
   '/m 內容　新增缺換藥',
   '/n 內容　新增公告',
-  '/q　　　 查詢最新資訊',
-  '/q h　　 查詢交班',
-  '/q m　　 查詢缺換藥',
-  '/q n　　 查詢公告',
-  '/q 關鍵字　搜尋資訊',
+  '/q　　　 查詢所有資訊',
+  '/q h　　 查詢最近 7 天交班',
+  '/q m　　 查詢所有缺換藥',
+  '/q n　　 查詢所有公告',
+  '/q 關鍵字　搜尋所有資訊',
+  '/open　　 查詢所有未完成事項',
+  '/open 關鍵字　搜尋未完成事項',
   '/done 編號　完成事項',
   '/help　　 顯示說明',
   '',
@@ -65,7 +67,13 @@ function formatQueryResult(records, filters = {}) {
     ? getCategoryLabel(filters.category)
     : '重要';
   const keywordText = filters.keyword ? `｜關鍵字：${filters.keyword}` : '';
-  const lines = [`${categoryText}資訊${keywordText}：`, ''];
+  const rangeText =
+    filters.type === 'open-query'
+      ? '未完成'
+      : filters.category === 'handover'
+        ? '最近 7 天'
+        : '';
+  const lines = [`${categoryText}${rangeText}資訊${keywordText}：`, ''];
 
   for (const record of records) {
     const block = [

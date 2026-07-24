@@ -18,6 +18,8 @@ const COMMAND_ALIASES = new Map([
   ['公', 'add'],
   ['q', 'query'],
   ['查', 'query'],
+  ['open', 'open-query'],
+  ['未完成', 'open-query'],
   ['done', 'complete'],
   ['完成', 'complete'],
   ['help', 'help'],
@@ -80,7 +82,7 @@ function parseCommand(text) {
   }
 
   return {
-    type: 'query',
+    type: command === 'open-query' ? 'open-query' : 'query',
     category: possibleCategory,
     keyword: parts.join(' ').trim(),
   };

@@ -110,9 +110,46 @@ test('查詢指令會傳遞分類及關鍵字', async () => {
   assert.deepEqual(receivedFilters, {
     category: 'medication',
     keyword: 'cefazolin',
-    limit: 10,
+    limit: 100,
   });
   assert.equal(replies[0].messages[0].text, '查無符合條件的資訊。');
+});
+
+test('交班查詢只傳遞最近七天的範圍', async () => {
+  let receivedFilters;
+  const { handler } = createFixtures({
+    async listRecords(_scope, filters) {
+      receivedFilters = filters;
+      return [];
+    },
+  });
+
+  await handler(textEvent('/q h'));
+
+  assert.deepEqual(receivedFilters, {
+    category: 'handover',
+    keyword: '',
+    limit: 100,
+    createdSince: 1721174400000,
+  });
+});
+
+test('未完成事項查詢不限制日期', async () => {
+  let receivedFilters;
+  const { handler } = createFixtures({
+    async listRecords(_scope, filters) {
+      receivedFilters = filters;
+      return [];
+    },
+  });
+
+  await handler(textEvent('/open m cefazolin'));
+
+  assert.deepEqual(receivedFilters, {
+    category: 'medication',
+    keyword: 'cefazolin',
+    limit: 100,
+  });
 });
 
 test('完成指令會更新指定事項', async () => {
