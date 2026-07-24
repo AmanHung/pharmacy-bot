@@ -1,8 +1,16 @@
+const {
+  buildCompletePostback,
+  buildQueryPostback,
+} = require('./postbacks');
+
 const CATEGORY_LABELS = {
   handover: '交班',
   medication: '缺換藥',
   notice: '公告',
 };
+
+const QUERY_PAGE_SIZE = 5;
+const STALE_OPEN_DAYS = 7;
 
 const HELP_MESSAGE = [
   '藥劑科資訊機器人指令：',
@@ -10,6 +18,7 @@ const HELP_MESSAGE = [
   '/h 內容　新增交班',
   '/m 內容　新增缺換藥',
   '/n 內容　新增公告',
+  '/n 內容 #到期 YYYY-MM-DD　新增有期限的公告',
   '/q　　　 查詢所有資訊',
   '/q h　　 查詢最近 7 天交班',
   '/q m　　 查詢所有缺換藥',
@@ -20,6 +29,7 @@ const HELP_MESSAGE = [
   '/done 編號　完成事項',
   '/help　　 顯示說明',
   '',
+  '查詢結果可直接點「標記完成」。',
   '一般群組聊天不會被保存。',
 ].join('\n');
 
@@ -38,6 +48,25 @@ function formatTimestamp(timestamp) {
   }).format(new Date(timestamp));
 }
 
+function formatDate(timestamp) {
+  return new Intl.DateTimeFormat('zh-TW', {
+    timeZone: 'Asia/Taipei',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(timestamp));
+}
+
+function formatAge(createdAt, currentTime) {
+  const difference = Math.max(0, currentTime - createdAt);
+  const days = Math.floor(difference / (24 * 60 * 60 * 1000));
+
+  if (days === 0) {
+    return '今天建立';
+  }
+
+  return `${days >= STALE_OPEN_DAYS ? '可能過期｜' : ''}已 ${days} 天`;
+}
+
 function cleanText(text, maximumLength = 600) {
   const normalized = String(text || '').replace(/\s+/g, ' ').trim();
   if (normalized.length <= maximumLength) {
@@ -47,18 +76,126 @@ function cleanText(text, maximumLength = 600) {
 }
 
 function formatSavedRecord(record) {
-  return [
+  const lines = [
     `[${record.shortId}] 已記錄${getCategoryLabel(record.category)}資訊`,
     cleanText(record.content),
-    `登錄者：${cleanText(record.authorName, 80)}`,
-  ].join('\n');
+  ];
+
+  if (record.category === 'handover') {
+    lines.push(`登錄者：${cleanText(record.authorName, 80)}`);
+  }
+
+  if (record.category === 'notice' && record.expiresAt) {
+    lines.push(`期限：${formatDate(record.expiresAt)}`);
+  }
+
+  return lines.join('\n');
 }
 
 function formatCompletedRecord(record) {
+  if (record.alreadyCompleted) {
+    return `[${record.shortId}] 這筆事項已經完成。`;
+  }
   return `[${record.shortId}] 已標記為完成。`;
 }
 
-function formatQueryResult(records, filters = {}) {
+function createRecordComponents(record, filters, currentTime) {
+  const metadata = [
+    `[${record.shortId}]`,
+    getCategoryLabel(record.category),
+    formatTimestamp(record.createdAt),
+  ];
+
+  if (record.category === 'handover') {
+    metadata.push(cleanText(record.authorName, 40));
+  }
+
+  if (filters.type === 'open-query') {
+    metadata.push(formatAge(record.createdAt, currentTime));
+  }
+
+  if (record.category === 'notice' && record.expiresAt) {
+    metadata.push(`期限 ${formatDate(record.expiresAt)}`);
+  }
+
+  return {
+    type: 'box',
+    layout: 'vertical',
+    margin: 'md',
+    spacing: 'sm',
+    contents: [
+      {
+        type: 'text',
+        text: metadata.join('｜'),
+        size: 'xs',
+        color: '#666666',
+        wrap: true,
+      },
+      {
+        type: 'text',
+        text: cleanText(record.content, 300),
+        size: 'sm',
+        color: '#222222',
+        wrap: true,
+      },
+      {
+        type: 'button',
+        style: 'secondary',
+        height: 'sm',
+        action: {
+          type: 'postback',
+          label: '標記完成',
+          data: buildCompletePostback(record.shortId),
+        },
+      },
+    ],
+  };
+}
+
+function createPaginationFooter(filters, page, pageCount) {
+  if (pageCount <= 1) {
+    return undefined;
+  }
+
+  const contents = [];
+  if (page > 0) {
+    contents.push({
+      type: 'button',
+      style: 'secondary',
+      height: 'sm',
+      action: {
+        type: 'postback',
+        label: '上一頁',
+        data: buildQueryPostback({ ...filters, page: page - 1 }),
+      },
+    });
+  }
+  if (page < pageCount - 1) {
+    contents.push({
+      type: 'button',
+      style: 'primary',
+      height: 'sm',
+      action: {
+        type: 'postback',
+        label: '下一頁',
+        data: buildQueryPostback({ ...filters, page: page + 1 }),
+      },
+    });
+  }
+
+  return {
+    type: 'box',
+    layout: 'horizontal',
+    spacing: 'sm',
+    contents,
+  };
+}
+
+function formatQueryResult(
+  records,
+  filters = {},
+  { currentTime = Date.now(), page = 0 } = {},
+) {
   if (records.length === 0) {
     return '查無符合條件的資訊。';
   }
@@ -66,34 +203,76 @@ function formatQueryResult(records, filters = {}) {
   const categoryText = filters.category
     ? getCategoryLabel(filters.category)
     : '重要';
-  const keywordText = filters.keyword ? `｜關鍵字：${filters.keyword}` : '';
+  const keywordText = filters.keyword ? `｜${filters.keyword}` : '';
   const rangeText =
     filters.type === 'open-query'
       ? '未完成'
       : filters.category === 'handover'
         ? '最近 7 天'
         : '';
-  const lines = [`${categoryText}${rangeText}資訊${keywordText}：`, ''];
+  const title = `${categoryText}${rangeText}資訊${keywordText}`;
+  const pageCount = Math.max(1, Math.ceil(records.length / QUERY_PAGE_SIZE));
+  const safePage = Math.min(Math.max(0, page), pageCount - 1);
+  const pageRecords = records.slice(
+    safePage * QUERY_PAGE_SIZE,
+    (safePage + 1) * QUERY_PAGE_SIZE,
+  );
+  const bodyContents = [];
 
-  for (const record of records) {
-    const block = [
-      `[${record.shortId}] ${getCategoryLabel(record.category)}｜${formatTimestamp(record.createdAt)}｜${cleanText(record.authorName, 40)}`,
-      cleanText(record.content),
-      '',
-    ];
-
-    if ([...lines, ...block].join('\n').length > 4800) {
-      lines.push('其餘結果已省略，請加入更精確的關鍵字。');
-      break;
+  for (const [index, record] of pageRecords.entries()) {
+    if (index > 0) {
+      bodyContents.push({
+        type: 'separator',
+        margin: 'md',
+      });
     }
-
-    lines.push(...block);
+    bodyContents.push(createRecordComponents(record, filters, currentTime));
   }
 
-  return lines.join('\n').trim();
+  const footer = createPaginationFooter(filters, safePage, pageCount);
+
+  return {
+    type: 'flex',
+    altText: `${title}（第 ${safePage + 1}/${pageCount} 頁）`,
+    contents: {
+      type: 'bubble',
+      size: 'mega',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        contents: [
+          {
+            type: 'text',
+            text: title,
+            weight: 'bold',
+            size: 'md',
+            wrap: true,
+          },
+          {
+            type: 'text',
+            text: `共 ${records.length} 筆｜第 ${safePage + 1}/${pageCount} 頁`,
+            size: 'xs',
+            color: '#777777',
+            margin: 'sm',
+          },
+        ],
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'md',
+        contents: bodyContents,
+      },
+      ...(footer ? { footer } : {}),
+    },
+  };
 }
 
 function formatInvalidCommand(command) {
+  if (command.reason === 'invalid-notice-deadline') {
+    return '公告期限格式錯誤，例如：/n 盤點提醒 #到期 2026-07-31';
+  }
+
   if (command.type === 'add' && !command.content) {
     const letter = {
       handover: 'h',
@@ -112,6 +291,8 @@ function formatInvalidCommand(command) {
 
 module.exports = {
   HELP_MESSAGE,
+  QUERY_PAGE_SIZE,
+  formatAge,
   formatCompletedRecord,
   formatInvalidCommand,
   formatQueryResult,

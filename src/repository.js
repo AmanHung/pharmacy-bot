@@ -1,4 +1,5 @@
 const { toFirebaseScopeKey } = require('./scope');
+const { createSearchTerms, normalizeSearchText } = require('./search');
 
 const MAX_QUERY_CANDIDATES = 100;
 
@@ -13,7 +14,7 @@ function snapshotValues(snapshot) {
   return values;
 }
 
-function createRecordRepository(database) {
+function createRecordRepository(database, { drugAliases = [] } = {}) {
   function recordsRef(scope) {
     const scopeKey = toFirebaseScopeKey(scope);
     return database.ref(`pharmacy_scopes/${scopeKey}/records`);
@@ -40,7 +41,7 @@ function createRecordRepository(database) {
       .limitToLast(MAX_QUERY_CANDIDATES)
       .once('value');
 
-    const keyword = (filters.keyword || '').trim().toLocaleLowerCase('zh-TW');
+    const searchTerms = createSearchTerms(filters.keyword, drugAliases);
     return snapshotValues(snapshot)
       .filter((record) => record.status === 'open')
       .filter(
@@ -52,18 +53,24 @@ function createRecordRepository(database) {
           filters.createdSince === undefined ||
           record.createdAt >= filters.createdSince,
       )
+      .filter(
+        (record) =>
+          filters.activeAt === undefined ||
+          !record.expiresAt ||
+          record.expiresAt >= filters.activeAt,
+      )
       .filter((record) => {
-        if (!keyword) {
+        if (searchTerms.length === 0) {
           return true;
         }
-        const searchableText = [
-          record.shortId,
-          record.content,
-          record.authorName,
-        ]
-          .join(' ')
-          .toLocaleLowerCase('zh-TW');
-        return searchableText.includes(keyword);
+        const searchableText = normalizeSearchText(
+          [
+            record.shortId,
+            record.content,
+            record.category === 'handover' ? record.authorName : '',
+          ].join(' '),
+        );
+        return searchTerms.some((term) => searchableText.includes(term));
       })
       .sort((left, right) => right.createdAt - left.createdAt)
       .slice(0, filters.limit || 10);
@@ -92,16 +99,30 @@ function createRecordRepository(database) {
       return null;
     }
 
-    const updatedRecord = {
-      ...match.record,
-      status: 'completed',
-      completedAt: completion.completedAt,
-      completedByUserId: completion.completedByUserId,
-      completedByName: completion.completedByName,
-      updatedAt: completion.completedAt,
-    };
-    await recordsRef(scope).child(match.key).set(updatedRecord);
-    return updatedRecord;
+    const recordRef = recordsRef(scope).child(match.key);
+    const transaction = await recordRef.transaction((currentRecord) => {
+      if (!currentRecord || currentRecord.status !== 'open') {
+        return undefined;
+      }
+
+      return {
+        ...currentRecord,
+        status: 'completed',
+        completedAt: completion.completedAt,
+        completedByUserId: completion.completedByUserId,
+        completedByName: completion.completedByName,
+        updatedAt: completion.completedAt,
+      };
+    });
+
+    if (!transaction.committed) {
+      return {
+        ...(transaction.snapshot.val() || match.record),
+        alreadyCompleted: true,
+      };
+    }
+
+    return transaction.snapshot.val();
   }
 
   async function withdrawRecordByMessageId(scope, messageId, withdrawnAt) {

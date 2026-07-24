@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createEventHandler } = require('../src/event-handler');
 
-function createFixtures(repositoryOverrides = {}) {
+function createFixtures(repositoryOverrides = {}, handlerOptions = {}) {
   const replies = [];
   const client = {
     async getGroupMemberProfile(groupId, userId) {
@@ -32,6 +32,7 @@ function createFixtures(repositoryOverrides = {}) {
     client,
     repository,
     now: () => 1721779200000,
+    ...handlerOptions,
   });
 
   return { client, handler, replies, repository };
@@ -82,6 +83,24 @@ test('新增指令會使用群組成員名稱並保存分類資料', async () =>
   assert.match(saved.record.shortId, /^M-[A-Z0-9]{6}$/);
   assert.equal(replies.length, 1);
   assert.match(replies[0].messages[0].text, /已記錄缺換藥資訊/);
+  assert.doesNotMatch(replies[0].messages[0].text, /登錄者/);
+});
+
+test('公告可設定截止日期且不顯示登錄者', async () => {
+  let saved;
+  const { handler, replies } = createFixtures({
+    async saveRecord(_scope, _eventKey, record) {
+      saved = record;
+      return { record, duplicate: false };
+    },
+  });
+
+  await handler(textEvent('/n 盤點提醒 #到期 2024-07-31'));
+
+  assert.equal(saved.content, '盤點提醒');
+  assert.equal(saved.expiresAt, Date.UTC(2024, 6, 31, 15, 59, 59, 999));
+  assert.match(replies[0].messages[0].text, /期限：07\/31/);
+  assert.doesNotMatch(replies[0].messages[0].text, /登錄者/);
 });
 
 test('重複事件不再次回覆', async () => {
@@ -111,6 +130,7 @@ test('查詢指令會傳遞分類及關鍵字', async () => {
     category: 'medication',
     keyword: 'cefazolin',
     limit: 100,
+    activeAt: 1721779200000,
   });
   assert.equal(replies[0].messages[0].text, '查無符合條件的資訊。');
 });
@@ -130,6 +150,7 @@ test('交班查詢只傳遞最近七天的範圍', async () => {
     category: 'handover',
     keyword: '',
     limit: 100,
+    activeAt: 1721779200000,
     createdSince: 1721174400000,
   });
 });
@@ -149,7 +170,57 @@ test('未完成事項查詢不限制日期', async () => {
     category: 'medication',
     keyword: 'cefazolin',
     limit: 100,
+    activeAt: 1721779200000,
   });
+});
+
+test('有結果的查詢會回覆可直接完成的 Flex Message', async () => {
+  const { handler, replies } = createFixtures({
+    async listRecords() {
+      return [
+        {
+          shortId: 'M-ABC123',
+          category: 'medication',
+          content: 'Cefazolin 缺貨',
+          authorName: '王藥師',
+          status: 'open',
+          createdAt: 1721779200000,
+        },
+      ];
+    },
+  });
+
+  await handler(textEvent('/q m Cefazolin'));
+
+  const message = replies[0].messages[0];
+  assert.equal(message.type, 'flex');
+  assert.match(message.altText, /缺換藥資訊/);
+  assert.doesNotMatch(JSON.stringify(message), /王藥師/);
+  assert.match(
+    JSON.stringify(message),
+    /action=complete&id=M-ABC123/,
+  );
+});
+
+test('交班查詢保留登錄者姓名', async () => {
+  const { handler, replies } = createFixtures({
+    async listRecords() {
+      return [
+        {
+          shortId: 'H-ABC123',
+          category: 'handover',
+          content: '確認冷藏溫度',
+          authorName: '王藥師',
+          status: 'open',
+          createdAt: 1721779200000,
+        },
+      ];
+    },
+  });
+
+  await handler(textEvent('/q h'));
+
+  assert.match(JSON.stringify(replies[0].messages[0]), /王藥師/);
 });
 
 test('完成指令會更新指定事項', async () => {
@@ -173,6 +244,44 @@ test('完成指令會更新指定事項', async () => {
   assert.equal(completion.details.completedByName, '王藥師');
   assert.equal(completion.details.completedByUserId, 'U1');
   assert.equal(replies[0].messages[0].text, '[M-ABC123] 已標記為完成。');
+});
+
+test('點擊查詢結果按鈕可標記完成', async () => {
+  let completedId;
+  const { handler, replies } = createFixtures({
+    async completeRecord(_scope, shortId) {
+      completedId = shortId;
+      return { shortId, status: 'completed' };
+    },
+  });
+
+  await handler({
+    type: 'postback',
+    replyToken: 'reply-token',
+    timestamp: 1721779200000,
+    source: { type: 'group', groupId: 'G1', userId: 'U1' },
+    postback: { data: 'action=complete&id=M-ABC123' },
+  });
+
+  assert.equal(completedId, 'M-ABC123');
+  assert.equal(replies[0].messages[0].text, '[M-ABC123] 已標記為完成。');
+});
+
+test('設定管理者後拒絕未授權使用者完成事項', async () => {
+  let completeCount = 0;
+  const { handler, replies } = createFixtures(
+    {
+      async completeRecord() {
+        completeCount += 1;
+      },
+    },
+    { adminUserIds: new Set(['U2']) },
+  );
+
+  await handler(textEvent('/done M-ABC123'));
+
+  assert.equal(completeCount, 0);
+  assert.equal(replies[0].messages[0].text, '你沒有標記完成的權限。');
 });
 
 test('撤回事件會清除對應紀錄內容', async () => {

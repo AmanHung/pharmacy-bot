@@ -1,4 +1,5 @@
 const { parseCommand } = require('./commands');
+const { extractNoticeDeadline } = require('./deadlines');
 const { createShortId } = require('./identifiers');
 const {
   HELP_MESSAGE,
@@ -7,6 +8,7 @@ const {
   formatQueryResult,
   formatSavedRecord,
 } = require('./messages');
+const { parsePostback } = require('./postbacks');
 const { getChatScope, isScopeAllowed } = require('./scope');
 
 const RECENT_QUERY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -46,16 +48,69 @@ function createEventHandler({
   client,
   repository,
   allowedGroupIds = new Set(),
+  adminUserIds = new Set(),
   now = () => Date.now(),
 }) {
-  async function reply(event, text) {
+  async function reply(event, message) {
     if (!event.replyToken) {
       return null;
     }
     return client.replyMessage({
       replyToken: event.replyToken,
-      messages: [{ type: 'text', text }],
+      messages: [
+        typeof message === 'string' ? { type: 'text', text: message } : message,
+      ],
     });
+  }
+
+  function canComplete(event) {
+    return (
+      adminUserIds.size === 0 ||
+      (event.source?.userId && adminUserIds.has(event.source.userId))
+    );
+  }
+
+  async function completeRecord(event, scope, shortId) {
+    if (!shortId) {
+      return reply(event, formatInvalidCommand({ type: 'complete' }));
+    }
+
+    if (!canComplete(event)) {
+      return reply(event, '你沒有標記完成的權限。');
+    }
+
+    const completedByName = await getDisplayName(client, event.source);
+    const completedAt = event.timestamp || now();
+    const record = await repository.completeRecord(scope, shortId, {
+      completedAt,
+      completedByUserId: event.source.userId || null,
+      completedByName,
+    });
+
+    if (!record) {
+      return reply(event, `找不到編號 ${shortId}。`);
+    }
+
+    return reply(event, formatCompletedRecord(record));
+  }
+
+  async function queryRecords(event, scope, command, page = 0) {
+    const currentTime = event.timestamp || now();
+    const filters = {
+      category: command.category,
+      keyword: command.keyword,
+      limit: QUERY_RESULT_LIMIT,
+      activeAt: currentTime,
+    };
+    if (command.type === 'query' && command.category === 'handover') {
+      filters.createdSince = currentTime - RECENT_QUERY_WINDOW_MS;
+    }
+
+    const records = await repository.listRecords(scope, filters);
+    return reply(
+      event,
+      formatQueryResult(records, command, { currentTime, page }),
+    );
   }
 
   return async function handleEvent(event) {
@@ -75,6 +130,17 @@ function createEventHandler({
         event.timestamp || now(),
       );
       return null;
+    }
+
+    if (event.type === 'postback') {
+      const action = parsePostback(event.postback?.data);
+      if (!action) {
+        return null;
+      }
+      if (action.type === 'complete') {
+        return completeRecord(event, scope, action.shortId);
+      }
+      return queryRecords(event, scope, action, action.page);
     }
 
     if (event.type !== 'message' || event.message?.type !== 'text') {
@@ -99,6 +165,23 @@ function createEventHandler({
         return reply(event, formatInvalidCommand(command));
       }
 
+      let content = command.content;
+      let expiresAt = null;
+      if (command.category === 'notice') {
+        const deadline = extractNoticeDeadline(command.content);
+        if (deadline.error || !deadline.content) {
+          return reply(
+            event,
+            formatInvalidCommand({
+              type: 'add',
+              reason: deadline.error || 'empty-content',
+            }),
+          );
+        }
+        content = deadline.content;
+        expiresAt = deadline.expiresAt;
+      }
+
       const createdAt = event.timestamp || now();
       const eventKey =
         event.webhookEventId || event.message.id || `${createdAt}`;
@@ -106,7 +189,7 @@ function createEventHandler({
       const record = {
         shortId: createShortId(command.category, eventKey, createdAt),
         category: command.category,
-        content: command.content,
+        content,
         status: 'open',
         authorUserId: event.source.userId || null,
         authorName,
@@ -116,6 +199,7 @@ function createEventHandler({
         sourceId: scope.id,
         sourceMessageId: event.message.id || null,
         webhookEventId: event.webhookEventId || null,
+        ...(expiresAt ? { expiresAt } : {}),
       };
       const result = await repository.saveRecord(scope, eventKey, record);
 
@@ -127,37 +211,10 @@ function createEventHandler({
     }
 
     if (command.type === 'query' || command.type === 'open-query') {
-      const filters = {
-        category: command.category,
-        keyword: command.keyword,
-        limit: QUERY_RESULT_LIMIT,
-      };
-      if (command.type === 'query' && command.category === 'handover') {
-        filters.createdSince =
-          (event.timestamp || now()) - RECENT_QUERY_WINDOW_MS;
-      }
-
-      const records = await repository.listRecords(scope, filters);
-      return reply(event, formatQueryResult(records, command));
+      return queryRecords(event, scope, command);
     }
 
-    if (!command.shortId) {
-      return reply(event, formatInvalidCommand(command));
-    }
-
-    const completedByName = await getDisplayName(client, event.source);
-    const completedAt = event.timestamp || now();
-    const record = await repository.completeRecord(scope, command.shortId, {
-      completedAt,
-      completedByUserId: event.source.userId || null,
-      completedByName,
-    });
-
-    if (!record) {
-      return reply(event, `找不到編號 ${command.shortId}。`);
-    }
-
-    return reply(event, formatCompletedRecord(record));
+    return completeRecord(event, scope, command.shortId);
   };
 }
 

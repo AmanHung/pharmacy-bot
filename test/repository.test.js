@@ -110,3 +110,87 @@ test('交班日期範圍會排除七天以前的事項', async () => {
     ['H-RECENT'],
   );
 });
+
+test('搜尋會忽略大小寫、空白及標點差異', async () => {
+  const repository = createRecordRepository(
+    createDatabase([
+      {
+        shortId: 'M-DRUG01',
+        category: 'medication',
+        content: 'Amoxicillin / Clavulanate 暫時缺貨',
+        authorName: '王藥師',
+        status: 'open',
+        createdAt: 1000,
+      },
+    ]),
+  );
+
+  const records = await repository.listRecords(
+    { type: 'group', id: 'G1' },
+    { keyword: 'amoxicillin-clavulanate', limit: 100 },
+  );
+
+  assert.equal(records.length, 1);
+});
+
+test('查詢會排除已到期公告', async () => {
+  const repository = createRecordRepository(
+    createDatabase([
+      {
+        shortId: 'N-OLD001',
+        category: 'notice',
+        content: '已過期公告',
+        authorName: '王藥師',
+        status: 'open',
+        createdAt: 1000,
+        expiresAt: 1999,
+      },
+      {
+        shortId: 'N-NEW001',
+        category: 'notice',
+        content: '有效公告',
+        authorName: '王藥師',
+        status: 'open',
+        createdAt: 1000,
+        expiresAt: 3000,
+      },
+    ]),
+  );
+
+  const records = await repository.listRecords(
+    { type: 'group', id: 'G1' },
+    { category: 'notice', activeAt: 2000, limit: 100 },
+  );
+
+  assert.deepEqual(
+    records.map((record) => record.shortId),
+    ['N-NEW001'],
+  );
+});
+
+test('設定藥品別名後可用商品名查到學名內容', async () => {
+  const repository = createRecordRepository(
+    createDatabase([
+      {
+        shortId: 'M-DRUG02',
+        category: 'medication',
+        content: 'Amoxicillin/Clavulanate 暫時缺貨',
+        authorName: '王藥師',
+        status: 'open',
+        createdAt: 1000,
+      },
+    ]),
+    {
+      drugAliases: [
+        ['augmentin', '安滅菌', 'amoxicillinclavulanate'],
+      ],
+    },
+  );
+
+  const records = await repository.listRecords(
+    { type: 'group', id: 'G1' },
+    { keyword: '安滅菌', limit: 100 },
+  );
+
+  assert.equal(records.length, 1);
+});

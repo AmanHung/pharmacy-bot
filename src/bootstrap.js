@@ -8,7 +8,9 @@ const { createRecordRepository } = require('./repository');
 function createApplication() {
   const config = loadConfig();
   const database = createFirebaseDatabase(config);
-  const repository = createRecordRepository(database);
+  const repository = createRecordRepository(database, {
+    drugAliases: config.drugAliases,
+  });
   const client = new line.messagingApi.MessagingApiClient({
     channelAccessToken: config.channelAccessToken,
   });
@@ -16,6 +18,7 @@ function createApplication() {
     client,
     repository,
     allowedGroupIds: config.allowedGroupIds,
+    adminUserIds: config.adminUserIds,
   });
 
   return createExpressApp({ config, handleEvent });

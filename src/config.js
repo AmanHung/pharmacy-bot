@@ -1,4 +1,5 @@
 require('dotenv').config({ quiet: true });
+const { parseDrugAliases } = require('./search');
 
 const DEFAULT_DATABASE_URL =
   'https://pharmacy-bot-fd2cb-default-rtdb.asia-southeast1.firebasedatabase.app';
@@ -38,6 +39,8 @@ function loadConfig() {
     firebaseDatabaseUrl:
       process.env.FIREBASE_DATABASE_URL?.trim() || DEFAULT_DATABASE_URL,
     allowedGroupIds: parseAllowedGroupIds(process.env.ALLOWED_GROUP_IDS),
+    adminUserIds: parseAllowedGroupIds(process.env.ADMIN_USER_IDS),
+    drugAliases: parseDrugAliases(process.env.DRUG_ALIASES_JSON),
   };
 }
 
