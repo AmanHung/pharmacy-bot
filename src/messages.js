@@ -1,7 +1,4 @@
-const {
-  buildCompletePostback,
-  buildQueryPostback,
-} = require('./postbacks');
+const { buildQueryPostback } = require('./postbacks');
 
 const CATEGORY_LABELS = {
   handover: '交班',
@@ -33,6 +30,163 @@ const HELP_MESSAGE = [
   '新增或完成成功時不另行回覆，以減少群組訊息。',
   '一般群組聊天不會被保存。',
 ].join('\n');
+
+function createPillAction(label, action, color = '#E8F0FE') {
+  return {
+    type: 'box',
+    layout: 'vertical',
+    flex: 0,
+    margin: 'sm',
+    paddingStart: 'sm',
+    paddingEnd: 'sm',
+    paddingTop: 'xs',
+    paddingBottom: 'xs',
+    cornerRadius: 'md',
+    backgroundColor: color,
+    contents: [
+      {
+        type: 'text',
+        text: label,
+        size: 'xs',
+        color: '#1A5FB4',
+        weight: 'bold',
+        align: 'center',
+      },
+    ],
+    action,
+  };
+}
+
+function createMenuRow(label, actionLabel, action) {
+  return {
+    type: 'box',
+    layout: 'horizontal',
+    alignItems: 'center',
+    margin: 'sm',
+    contents: [
+      {
+        type: 'text',
+        text: label,
+        size: 'sm',
+        color: '#222222',
+        flex: 1,
+        wrap: true,
+      },
+      createPillAction(actionLabel, action),
+    ],
+  };
+}
+
+function createComposeAction(command, label) {
+  return {
+    type: 'postback',
+    label,
+    data: new URLSearchParams({
+      action: 'compose',
+      command,
+    }).toString(),
+    inputOption: 'openKeyboard',
+    fillInText: `${command} `,
+  };
+}
+
+const FUNCTION_MENU_MESSAGE = {
+  type: 'flex',
+  altText: '藥劑科資訊機器人功能選單',
+  contents: {
+    type: 'bubble',
+    size: 'mega',
+    header: {
+      type: 'box',
+      layout: 'vertical',
+      contents: [
+        {
+          type: 'text',
+          text: '藥劑科資訊機器人',
+          weight: 'bold',
+          size: 'md',
+        },
+        {
+          type: 'text',
+          text: '點選功能即可輸入或查詢',
+          size: 'xs',
+          color: '#777777',
+          margin: 'sm',
+        },
+      ],
+    },
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      spacing: 'xs',
+      contents: [
+        {
+          type: 'text',
+          text: '新增資訊',
+          size: 'xs',
+          color: '#777777',
+          weight: 'bold',
+        },
+        createMenuRow(
+          '交班資訊',
+          '輸入 /h',
+          createComposeAction('/h', '輸入交班'),
+        ),
+        createMenuRow(
+          '缺換藥資訊',
+          '輸入 /m',
+          createComposeAction('/m', '輸入缺換藥'),
+        ),
+        createMenuRow(
+          '公告資訊',
+          '輸入 /n',
+          createComposeAction('/n', '輸入公告'),
+        ),
+        {
+          type: 'separator',
+          margin: 'md',
+        },
+        {
+          type: 'text',
+          text: '查詢資訊',
+          size: 'xs',
+          color: '#777777',
+          weight: 'bold',
+          margin: 'md',
+        },
+        createMenuRow('最近 7 天交班', '查詢', {
+          type: 'postback',
+          label: '查詢最近 7 天交班',
+          data: buildQueryPostback({
+            mode: 'query',
+            category: 'handover',
+          }),
+        }),
+        createMenuRow('所有缺換藥', '查詢', {
+          type: 'postback',
+          label: '查詢所有缺換藥',
+          data: buildQueryPostback({
+            mode: 'query',
+            category: 'medication',
+          }),
+        }),
+        createMenuRow('所有公告', '查詢', {
+          type: 'postback',
+          label: '查詢所有公告',
+          data: buildQueryPostback({
+            mode: 'query',
+            category: 'notice',
+          }),
+        }),
+        createMenuRow('所有未完成事項', '查詢', {
+          type: 'postback',
+          label: '查詢所有未完成事項',
+          data: buildQueryPostback({ mode: 'open-query' }),
+        }),
+      ],
+    },
+  },
+};
 
 function getCategoryLabel(category) {
   return CATEGORY_LABELS[category] || '資訊';
@@ -133,21 +287,28 @@ function createRecordComponents(record, filters, currentTime) {
         wrap: true,
       },
       {
-        type: 'text',
-        text: cleanText(record.content, 300),
-        size: 'sm',
-        color: '#222222',
-        wrap: true,
-      },
-      {
-        type: 'button',
-        style: 'secondary',
-        height: 'sm',
-        action: {
-          type: 'postback',
-          label: '標記完成',
-          data: buildCompletePostback(record.shortId),
-        },
+        type: 'box',
+        layout: 'horizontal',
+        alignItems: 'center',
+        contents: [
+          {
+            type: 'text',
+            text: cleanText(record.content, 300),
+            size: 'sm',
+            color: '#222222',
+            wrap: true,
+            flex: 1,
+          },
+          createPillAction(
+            '完成',
+            {
+              type: 'message',
+              label: `完成 ${record.shortId}`,
+              text: `/done ${record.shortId}`,
+            },
+            '#E8F5E9',
+          ),
+        ],
       },
     ],
   };
@@ -291,6 +452,7 @@ function formatInvalidCommand(command) {
 }
 
 module.exports = {
+  FUNCTION_MENU_MESSAGE,
   HELP_MESSAGE,
   QUERY_PAGE_SIZE,
   formatAge,

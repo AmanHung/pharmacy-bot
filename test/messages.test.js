@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
+  FUNCTION_MENU_MESSAGE,
   formatAge,
   formatQueryResult,
   formatSavedRecord,
@@ -36,6 +37,29 @@ test('查詢結果每頁五筆並提供下一頁', () => {
   assert.match(message.altText, /第 1\/2 頁/);
   assert.match(serialized, /下一頁/);
   assert.doesNotMatch(serialized, /測試內容 5/);
+});
+
+test('查詢結果以內容右側的小按鈕送出完成指令', () => {
+  const message = formatQueryResult(
+    [record(1)],
+    { type: 'query', category: 'medication', keyword: '' },
+    { currentTime: 10 * DAY, page: 0 },
+  );
+  const serialized = JSON.stringify(message);
+
+  assert.match(serialized, /"text":"完成"/);
+  assert.match(serialized, /"type":"message"/);
+  assert.match(serialized, /\/done M-TEST01/);
+  assert.doesNotMatch(serialized, /"type":"button"/);
+});
+
+test('功能選單可預填新增指令並直接執行查詢', () => {
+  const serialized = JSON.stringify(FUNCTION_MENU_MESSAGE);
+
+  assert.match(serialized, /"inputOption":"openKeyboard"/);
+  assert.match(serialized, /"fillInText":"\/m "/);
+  assert.match(serialized, /action=query/);
+  assert.equal(FUNCTION_MENU_MESSAGE.type, 'flex');
 });
 
 test('缺換藥與公告不顯示登錄者但交班保留', () => {

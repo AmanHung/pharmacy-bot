@@ -74,6 +74,48 @@ test('一般群組聊天不儲存也不回覆', async () => {
   assert.equal(replies.length, 0);
 });
 
+test('@ 機器人時回覆可操作的功能選單', async () => {
+  const { handler, replies } = createFixtures();
+  const event = textEvent('@藥劑科機器人');
+  event.message.mention = {
+    mentionees: [
+      {
+        index: 0,
+        length: 8,
+        type: 'user',
+        userId: 'UBOT',
+        isSelf: true,
+      },
+    ],
+  };
+
+  await handler(event);
+
+  assert.equal(replies.length, 1);
+  assert.equal(replies[0].messages[0].type, 'flex');
+  assert.match(replies[0].messages[0].altText, /功能選單/);
+});
+
+test('@ 其他成員不會喚出功能選單', async () => {
+  const { handler, replies } = createFixtures();
+  const event = textEvent('@王藥師 明天開會');
+  event.message.mention = {
+    mentionees: [
+      {
+        index: 0,
+        length: 4,
+        type: 'user',
+        userId: 'U2',
+        isSelf: false,
+      },
+    ],
+  };
+
+  await handler(event);
+
+  assert.equal(replies.length, 0);
+});
+
 test('新增指令會保存分類資料並以已讀取代成功回覆', async () => {
   let saved;
   const { handler, readReceipts, replies } = createFixtures({
@@ -209,7 +251,7 @@ test('有結果的查詢會回覆可直接完成的 Flex Message', async () => {
   assert.doesNotMatch(JSON.stringify(message), /王藥師/);
   assert.match(
     JSON.stringify(message),
-    /action=complete&id=M-ABC123/,
+    /"text":"\/done M-ABC123"/,
   );
 });
 

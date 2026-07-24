@@ -2,6 +2,7 @@ const { parseCommand } = require('./commands');
 const { extractNoticeDeadline } = require('./deadlines');
 const { createShortId } = require('./identifiers');
 const {
+  FUNCTION_MENU_MESSAGE,
   HELP_MESSAGE,
   formatInvalidCommand,
   formatQueryResult,
@@ -11,6 +12,14 @@ const { getChatScope, isScopeAllowed } = require('./scope');
 
 const RECENT_QUERY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const QUERY_RESULT_LIMIT = 100;
+
+function isBotMentioned(message) {
+  return (
+    message?.mention?.mentionees?.some(
+      (mention) => mention.type === 'user' && mention.isSelf === true,
+    ) || false
+  );
+}
 
 async function getDisplayName(client, source) {
   if (!source?.userId) {
@@ -162,6 +171,10 @@ function createEventHandler({
       return null;
     }
 
+    if (isBotMentioned(event.message)) {
+      return reply(event, FUNCTION_MENU_MESSAGE);
+    }
+
     const command = parseCommand(event.message.text);
     if (command.type === 'ignore') {
       return null;
@@ -236,4 +249,5 @@ function createEventHandler({
 module.exports = {
   createEventHandler,
   getDisplayName,
+  isBotMentioned,
 };
