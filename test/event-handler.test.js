@@ -4,6 +4,7 @@ const { createEventHandler } = require('../src/event-handler');
 
 function createFixtures(repositoryOverrides = {}, handlerOptions = {}) {
   const replies = [];
+  const readReceipts = [];
   const client = {
     async getGroupMemberProfile(groupId, userId) {
       assert.equal(groupId, 'G1');
@@ -12,6 +13,10 @@ function createFixtures(repositoryOverrides = {}, handlerOptions = {}) {
     },
     async replyMessage(payload) {
       replies.push(payload);
+      return {};
+    },
+    async markMessagesAsReadByToken(payload) {
+      readReceipts.push(payload);
       return {};
     },
   };
@@ -35,7 +40,7 @@ function createFixtures(repositoryOverrides = {}, handlerOptions = {}) {
     ...handlerOptions,
   });
 
-  return { client, handler, replies, repository };
+  return { client, handler, readReceipts, replies, repository };
 }
 
 function textEvent(text, overrides = {}) {
@@ -45,7 +50,12 @@ function textEvent(text, overrides = {}) {
     timestamp: 1721779200000,
     webhookEventId: '01EVENTABC123',
     source: { type: 'group', groupId: 'G1', userId: 'U1' },
-    message: { type: 'text', id: 'message-1', text },
+    message: {
+      type: 'text',
+      id: 'message-1',
+      text,
+      markAsReadToken: 'mark-as-read-token',
+    },
     ...overrides,
   };
 }
@@ -64,9 +74,9 @@ test('一般群組聊天不儲存也不回覆', async () => {
   assert.equal(replies.length, 0);
 });
 
-test('新增指令會使用群組成員名稱並保存分類資料', async () => {
+test('新增指令會保存分類資料並以已讀取代成功回覆', async () => {
   let saved;
-  const { handler, replies } = createFixtures({
+  const { handler, readReceipts, replies } = createFixtures({
     async saveRecord(scope, eventKey, record) {
       saved = { scope, eventKey, record };
       return { record, duplicate: false };
@@ -81,14 +91,15 @@ test('新增指令會使用群組成員名稱並保存分類資料', async () =>
   assert.equal(saved.record.authorName, '王藥師');
   assert.equal(saved.record.status, 'open');
   assert.match(saved.record.shortId, /^M-[A-Z0-9]{6}$/);
-  assert.equal(replies.length, 1);
-  assert.match(replies[0].messages[0].text, /已記錄缺換藥資訊/);
-  assert.doesNotMatch(replies[0].messages[0].text, /登錄者/);
+  assert.equal(replies.length, 0);
+  assert.deepEqual(readReceipts, [
+    { markAsReadToken: 'mark-as-read-token' },
+  ]);
 });
 
-test('公告可設定截止日期且不顯示登錄者', async () => {
+test('公告可設定截止日期且成功時不回覆', async () => {
   let saved;
-  const { handler, replies } = createFixtures({
+  const { handler, readReceipts, replies } = createFixtures({
     async saveRecord(_scope, _eventKey, record) {
       saved = record;
       return { record, duplicate: false };
@@ -99,8 +110,8 @@ test('公告可設定截止日期且不顯示登錄者', async () => {
 
   assert.equal(saved.content, '盤點提醒');
   assert.equal(saved.expiresAt, Date.UTC(2024, 6, 31, 15, 59, 59, 999));
-  assert.match(replies[0].messages[0].text, /期限：07\/31/);
-  assert.doesNotMatch(replies[0].messages[0].text, /登錄者/);
+  assert.equal(replies.length, 0);
+  assert.equal(readReceipts.length, 1);
 });
 
 test('重複事件不再次回覆', async () => {
@@ -223,9 +234,9 @@ test('交班查詢保留登錄者姓名', async () => {
   assert.match(JSON.stringify(replies[0].messages[0]), /王藥師/);
 });
 
-test('完成指令會更新指定事項', async () => {
+test('完成指令會更新指定事項並以已讀取代成功回覆', async () => {
   let completion;
-  const { handler, replies } = createFixtures({
+  const { handler, readReceipts, replies } = createFixtures({
     async completeRecord(scope, shortId, details) {
       completion = { scope, shortId, details };
       return {
@@ -243,10 +254,11 @@ test('完成指令會更新指定事項', async () => {
   assert.equal(completion.shortId, 'M-ABC123');
   assert.equal(completion.details.completedByName, '王藥師');
   assert.equal(completion.details.completedByUserId, 'U1');
-  assert.equal(replies[0].messages[0].text, '[M-ABC123] 已標記為完成。');
+  assert.equal(replies.length, 0);
+  assert.equal(readReceipts.length, 1);
 });
 
-test('點擊查詢結果按鈕可標記完成', async () => {
+test('點擊查詢結果按鈕可靜默標記完成', async () => {
   let completedId;
   const { handler, replies } = createFixtures({
     async completeRecord(_scope, shortId) {
@@ -264,7 +276,7 @@ test('點擊查詢結果按鈕可標記完成', async () => {
   });
 
   assert.equal(completedId, 'M-ABC123');
-  assert.equal(replies[0].messages[0].text, '[M-ABC123] 已標記為完成。');
+  assert.equal(replies.length, 0);
 });
 
 test('設定管理者後拒絕未授權使用者完成事項', async () => {

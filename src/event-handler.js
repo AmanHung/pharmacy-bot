@@ -3,10 +3,8 @@ const { extractNoticeDeadline } = require('./deadlines');
 const { createShortId } = require('./identifiers');
 const {
   HELP_MESSAGE,
-  formatCompletedRecord,
   formatInvalidCommand,
   formatQueryResult,
-  formatSavedRecord,
 } = require('./messages');
 const { parsePostback } = require('./postbacks');
 const { getChatScope, isScopeAllowed } = require('./scope');
@@ -63,6 +61,23 @@ function createEventHandler({
     });
   }
 
+  async function acknowledgeSilently(event) {
+    const markAsReadToken = event.message?.markAsReadToken;
+    if (
+      !markAsReadToken ||
+      typeof client.markMessagesAsReadByToken !== 'function'
+    ) {
+      return null;
+    }
+
+    try {
+      return await client.markMessagesAsReadByToken({ markAsReadToken });
+    } catch (error) {
+      console.warn('Unable to mark LINE message as read:', error.message);
+      return null;
+    }
+  }
+
   function canComplete(event) {
     return (
       adminUserIds.size === 0 ||
@@ -91,7 +106,7 @@ function createEventHandler({
       return reply(event, `找不到編號 ${shortId}。`);
     }
 
-    return reply(event, formatCompletedRecord(record));
+    return acknowledgeSilently(event);
   }
 
   async function queryRecords(event, scope, command, page = 0) {
@@ -207,7 +222,7 @@ function createEventHandler({
         return null;
       }
 
-      return reply(event, formatSavedRecord(record));
+      return acknowledgeSilently(event);
     }
 
     if (command.type === 'query' || command.type === 'open-query') {
