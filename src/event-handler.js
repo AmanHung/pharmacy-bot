@@ -14,6 +14,21 @@ const { getChatScope, isScopeAllowed } = require('./scope');
 const RECENT_QUERY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const QUERY_RESULT_LIMIT = 100;
 
+function extractFirstWebUrl(text) {
+  const match = String(text || '').match(/https?:\/\/[^\s<>"']+/iu);
+  if (!match) {
+    return null;
+  }
+
+  const candidate = match[0].replace(/[),，。！？!?；;：:\]}]+$/u, '');
+  try {
+    const url = new URL(candidate);
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
 function isBotMentioned(message) {
   return (
     message?.mention?.mentionees?.some(
@@ -164,12 +179,15 @@ function createEventHandler({
   async function showSourceMessage(event, scope, shortId) {
     const record = await repository.getRecordByShortId(scope, shortId);
     if (!record?.sourceQuoteToken) {
-      return reply(event, '這筆資訊沒有可返回的原始圖片。');
+      return reply(event, '這筆資訊沒有可返回的原始訊息。');
     }
+
+    const sourceLabel =
+      record.sourceReferenceType === 'image' ? '原始圖片' : '原始訊息';
 
     return reply(event, {
       type: 'text',
-      text: `原始圖片：${record.content}`,
+      text: `${sourceLabel}：${record.content}`,
       quoteToken: record.sourceQuoteToken,
     });
   }
@@ -239,6 +257,20 @@ function createEventHandler({
       return null;
     }
 
+    if (
+      event.message.id &&
+      event.message.quoteToken &&
+      typeof repository.saveMessageReference === 'function'
+    ) {
+      await repository.saveMessageReference(scope, event.message.id, {
+        type: 'text',
+        quoteToken: event.message.quoteToken,
+        url: extractFirstWebUrl(event.message.text),
+        authorUserId: event.source?.userId || null,
+        createdAt: event.timestamp || now(),
+      });
+    }
+
     if (isBotMentioned(event.message)) {
       return reply(event, FUNCTION_MENU_MESSAGE);
     }
@@ -301,11 +333,12 @@ function createEventHandler({
         sourceId: scope.id,
         sourceMessageId: event.message.id || null,
         webhookEventId: event.webhookEventId || null,
-        ...(sourceReference?.type === 'image' && sourceReference.quoteToken
+        ...(sourceReference?.quoteToken
           ? {
               sourceReferenceMessageId: quotedMessageId,
-              sourceReferenceType: 'image',
+              sourceReferenceType: sourceReference.type || 'text',
               sourceQuoteToken: sourceReference.quoteToken,
+              ...(sourceReference.url ? { sourceUrl: sourceReference.url } : {}),
             }
           : {}),
         ...(expiresAt ? { expiresAt } : {}),

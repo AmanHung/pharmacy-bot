@@ -332,10 +332,12 @@ function createRecordComponents(record, filters, currentTime) {
     record.category === 'handover' ? '#E8F5E9' : '#FDECEC';
   const actionTextColor =
     record.category === 'handover' ? '#2E7D32' : '#C62828';
+  const sourceUrl = record.sourceUrl || null;
   const linkUrl =
-    record.category === 'notice'
-      ? extractFirstWebUrl(record.content)
-      : null;
+    sourceUrl ||
+    (record.category === 'notice' ? extractFirstWebUrl(record.content) : null);
+  const linkLabel = sourceUrl ? '開啟記事本' : '開啟連結';
+  const linkActionLabel = sourceUrl ? '開啟原始記事本' : '開啟公告連結';
   const metadata = [
     getCategoryLabel(record.category),
     formatTimestamp(record.createdAt),
@@ -381,9 +383,9 @@ function createRecordComponents(record, filters, currentTime) {
           },
           ...(linkUrl
             ? [
-                createPillAction('開啟連結', {
+                createPillAction(linkLabel, {
                   type: 'uri',
-                  label: '開啟公告連結',
+                  label: linkActionLabel,
                   uri: linkUrl,
                   altUri: {
                     desktop: linkUrl,
@@ -391,13 +393,21 @@ function createRecordComponents(record, filters, currentTime) {
                 }),
               ]
             : []),
-          ...(record.sourceQuoteToken
+          ...(record.sourceQuoteToken && !sourceUrl
             ? [
-                createPillAction('看原圖', {
+                createPillAction(
+                  record.sourceReferenceType === 'image'
+                    ? '看原圖'
+                    : '看原訊息',
+                  {
                   type: 'postback',
-                  label: '查看原始圖片',
+                    label:
+                      record.sourceReferenceType === 'image'
+                        ? '查看原始圖片'
+                        : '查看原始訊息',
                   data: buildViewSourcePostback(record.shortId),
-                }),
+                  },
+                ),
               ]
             : []),
           createPillAction(

@@ -106,6 +106,7 @@ test('公告包含網址時提供可直接開啟的連結按鈕', () => {
 test('引用圖片的資訊會提供查看原圖按鈕', () => {
   const noticeRecord = record(5, 'notice');
   noticeRecord.sourceQuoteToken = 'quote-token-image';
+  noticeRecord.sourceReferenceType = 'image';
   const message = formatQueryResult(
     [noticeRecord],
     { type: 'query', category: 'notice', keyword: '' },
@@ -115,6 +116,21 @@ test('引用圖片的資訊會提供查看原圖按鈕', () => {
 
   assert.match(serialized, /"text":"看原圖"/);
   assert.match(serialized, /action=view-source&id=M-TEST05/);
+});
+
+test('回覆記事本建立的教育訓練會提供直接開啟按鈕', () => {
+  const educationRecord = record(6, 'education');
+  educationRecord.sourceReferenceType = 'text';
+  educationRecord.sourceUrl = 'https://line.me/R/note/example-note';
+  const message = formatQueryResult(
+    [educationRecord],
+    { type: 'query', category: 'education', keyword: '' },
+    { currentTime: 10 * DAY, page: 0 },
+  );
+  const serialized = JSON.stringify(message);
+
+  assert.match(serialized, /"text":"開啟記事本"/);
+  assert.match(serialized, /"uri":"https:\/\/line\.me\/R\/note\/example-note"/);
 });
 
 test('缺換藥與公告不顯示登錄者但交班保留', () => {

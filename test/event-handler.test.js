@@ -260,6 +260,42 @@ test('回覆圖片新增公告時會保存原圖引用資訊', async () => {
   assert.equal(savedRecord.sourceQuoteToken, 'image-quote-token');
 });
 
+test('回覆含記事本連結的訊息新增教育訓練時會保存連結', async () => {
+  let references = new Map();
+  let savedRecord;
+  const { handler } = createFixtures({
+    async saveMessageReference(_scope, messageId, reference) {
+      references.set(messageId, reference);
+    },
+    async getMessageReference(_scope, messageId) {
+      return references.get(messageId) || null;
+    },
+    async saveRecord(_scope, _eventKey, record) {
+      savedRecord = record;
+      return { record, duplicate: false };
+    },
+  });
+
+  await handler(
+    textEvent('教育訓練記事本 https://line.me/R/note/example-note', {
+      message: {
+        type: 'text',
+        id: 'note-message-1',
+        text: '教育訓練記事本 https://line.me/R/note/example-note',
+        quoteToken: 'note-quote-token',
+      },
+    }),
+  );
+
+  const event = textEvent('/e 下週三教育訓練');
+  event.message.quotedMessageId = 'note-message-1';
+  await handler(event);
+
+  assert.equal(savedRecord.sourceReferenceType, 'text');
+  assert.equal(savedRecord.sourceQuoteToken, 'note-quote-token');
+  assert.equal(savedRecord.sourceUrl, 'https://line.me/R/note/example-note');
+});
+
 test('重複事件不再次回覆', async () => {
   const { handler, replies } = createFixtures({
     async saveRecord(_scope, _eventKey, record) {
@@ -435,6 +471,7 @@ test('點擊看原圖會以引用訊息帶回原始圖片', async () => {
         shortId,
         category: 'notice',
         content: '請參考圖片說明',
+        sourceReferenceType: 'image',
         sourceQuoteToken: 'image-quote-token',
       };
     },
