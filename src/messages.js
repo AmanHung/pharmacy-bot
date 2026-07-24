@@ -296,6 +296,15 @@ function extractFirstWebUrl(text) {
   }
 }
 
+function isLineNoteUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname === 'line.me' && /\/note\//u.test(parsed.pathname);
+  } catch {
+    return false;
+  }
+}
+
 function formatSavedRecord(record) {
   const lines = [
     `[${record.shortId}] 已記錄${getCategoryLabel(record.category)}資訊`,
@@ -333,11 +342,11 @@ function createRecordComponents(record, filters, currentTime) {
   const actionTextColor =
     record.category === 'handover' ? '#2E7D32' : '#C62828';
   const sourceUrl = record.sourceUrl || null;
-  const linkUrl =
-    sourceUrl ||
-    (record.category === 'notice' ? extractFirstWebUrl(record.content) : null);
-  const linkLabel = sourceUrl ? '開啟記事本' : '開啟連結';
-  const linkActionLabel = sourceUrl ? '開啟原始記事本' : '開啟公告連結';
+  const contentUrl = extractFirstWebUrl(record.content);
+  const linkUrl = sourceUrl || contentUrl;
+  const isNoteLink = Boolean(sourceUrl) || isLineNoteUrl(contentUrl);
+  const linkLabel = isNoteLink ? '開啟記事本' : '開啟連結';
+  const linkActionLabel = isNoteLink ? '開啟原始記事本' : '開啟連結';
   const metadata = [
     getCategoryLabel(record.category),
     formatTimestamp(record.createdAt),

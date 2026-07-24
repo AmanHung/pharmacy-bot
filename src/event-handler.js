@@ -308,6 +308,13 @@ function createEventHandler({
         typeof repository.getMessageReference === 'function'
           ? await repository.getMessageReference(scope, quotedMessageId)
           : null;
+
+      if (quotedMessageId && !sourceReference) {
+        return reply(
+          event,
+          '未取得原始記事本連結。請先將記事本的「分享連結」貼成文字，或直接在指令後附上連結，例如：/e 上課公告 https://line.me/…',
+        );
+      }
       const record = {
         shortId: createShortId(command.category, eventKey, createdAt),
         category: command.category,

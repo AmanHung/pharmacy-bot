@@ -154,3 +154,17 @@ test('處理結果顯示內容但不顯示編碼', () => {
   );
   assert.doesNotMatch(formatCompletedRecord(handover), /M-TEST01/);
 });
+
+test('education records with a LINE note URL in their content show an open-note action', () => {
+  const educationRecord = record(7, 'education');
+  educationRecord.content = '上課公告 https://line.me/R/note/example-note';
+  const message = formatQueryResult(
+    [educationRecord],
+    { type: 'query', category: 'education', keyword: '' },
+    { currentTime: 10 * DAY, page: 0 },
+  );
+  const serialized = JSON.stringify(message);
+
+  assert.match(serialized, /"text":"開啟記事本"/);
+  assert.match(serialized, /"uri":"https:\/\/line\.me\/R\/note\/example-note"/);
+});
