@@ -80,17 +80,26 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
     const snapshot = await recordsRef(scope)
       .orderByChild('shortId')
       .equalTo(shortId)
-      .limitToFirst(1)
       .once('value');
 
-    let result = null;
+    const matches = [];
     snapshot.forEach((childSnapshot) => {
-      result = {
+      matches.push({
         key: childSnapshot.key,
         record: childSnapshot.val(),
-      };
+      });
     });
-    return result;
+
+    matches.sort((left, right) => {
+      const leftIsOpen = left.record.status === 'open';
+      const rightIsOpen = right.record.status === 'open';
+      if (leftIsOpen !== rightIsOpen) {
+        return leftIsOpen ? -1 : 1;
+      }
+      return (right.record.createdAt || 0) - (left.record.createdAt || 0);
+    });
+
+    return matches[0] || null;
   }
 
   async function completeRecord(scope, shortId, completion) {

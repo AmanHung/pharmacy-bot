@@ -194,3 +194,85 @@ test('設定藥品別名後可用商品名查到學名內容', async () => {
 
   assert.equal(records.length, 1);
 });
+
+test('相同短編號存在多筆時優先完成最新的未完成紀錄', async () => {
+  const records = {
+    completed: {
+      shortId: 'M-COLL01',
+      status: 'completed',
+      createdAt: 1000,
+    },
+    open: {
+      shortId: 'M-COLL01',
+      status: 'open',
+      createdAt: 2000,
+    },
+  };
+  let updatedKey;
+
+  function createSnapshot(entries) {
+    return {
+      forEach(callback) {
+        for (const [key, record] of entries) {
+          callback({
+            key,
+            val() {
+              return record;
+            },
+          });
+        }
+      },
+    };
+  }
+
+  const query = {
+    orderByChild() {
+      return query;
+    },
+    equalTo() {
+      return query;
+    },
+    async once() {
+      return createSnapshot(Object.entries(records));
+    },
+    child(key) {
+      return {
+        async transaction(update) {
+          const nextRecord = update(records[key]);
+          if (nextRecord === undefined) {
+            return {
+              committed: false,
+              snapshot: { val: () => records[key] },
+            };
+          }
+          updatedKey = key;
+          records[key] = nextRecord;
+          return {
+            committed: true,
+            snapshot: { val: () => records[key] },
+          };
+        },
+      };
+    },
+  };
+
+  const repository = createRecordRepository({
+    ref() {
+      return query;
+    },
+  });
+
+  const result = await repository.completeRecord(
+    { type: 'group', id: 'G1' },
+    'M-COLL01',
+    {
+      completedAt: 3000,
+      completedByUserId: 'U1',
+      completedByName: '王藥師',
+    },
+  );
+
+  assert.equal(updatedKey, 'open');
+  assert.equal(result.status, 'completed');
+  assert.equal(records.completed.createdAt, 1000);
+});
