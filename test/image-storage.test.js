@@ -44,8 +44,10 @@ test('將 LINE 圖片保存至群組專屬私有路徑', async () => {
 });
 
 test('從私有資料庫讀取圖片', async () => {
+  const currentTime = 1000;
   const imageStorage = createImageStorage({
     blobClient: {},
+    now: () => currentTime,
     database: {
       ref(path) {
         assert.equal(path, 'pharmacy_images/group/message-1');
@@ -56,6 +58,7 @@ test('從私有資料庫讀取圖片', async () => {
                 return {
                   contentType: 'image/png',
                   data: Buffer.from('stored-image').toString('base64'),
+                  expiresAt: currentTime + 1000,
                 };
               },
             };
@@ -70,4 +73,37 @@ test('從私有資料庫讀取圖片', async () => {
   );
   assert.equal(result.contentType, 'image/png');
   assert.equal(result.buffer.toString(), 'stored-image');
+});
+
+test('清除保存超過三個月的圖片', async () => {
+  let updates;
+  const imageStorage = createImageStorage({
+    blobClient: {},
+    database: {
+      ref(path) {
+        assert.equal(path, 'pharmacy_images');
+        return {
+          async once() {
+            return {
+              val() {
+                return {
+                  group1: {
+                    old: { expiresAt: 999 },
+                    current: { expiresAt: 2000 },
+                  },
+                };
+              },
+            };
+          },
+          async update(value) {
+            updates = value;
+          },
+        };
+      },
+    },
+  });
+
+  const removed = await imageStorage.removeExpiredImages(1000);
+  assert.equal(removed, 1);
+  assert.deepEqual(updates, { 'group1/old': null });
 });

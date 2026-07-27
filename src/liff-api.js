@@ -3,7 +3,7 @@ const { LiffAccessError } = require('./liff-auth');
 
 const LIFF_RECORD_LIMIT = 100;
 
-function serializeRecord(record) {
+function serializeRecord(record, currentTime = Date.now()) {
   return {
     shortId: record.shortId,
     category: record.category,
@@ -12,7 +12,11 @@ function serializeRecord(record) {
       record.category === 'handover' ? record.authorName || null : null,
     createdAt: record.createdAt,
     expiresAt: record.expiresAt || null,
-    hasImage: Boolean(record.sourceImagePath),
+    hasImage: Boolean(
+      record.sourceImagePath &&
+        record.sourceImageExpiresAt &&
+        record.sourceImageExpiresAt > currentTime,
+    ),
     sourceUrl: record.sourceUrl || null,
   };
 }
@@ -48,7 +52,7 @@ function createLiffRouter({
       response.set('cache-control', 'private, no-store, max-age=0');
       response.json({
         displayName: request.liffMember.displayName || '群組成員',
-        records: records.map(serializeRecord),
+        records: records.map((record) => serializeRecord(record, currentTime)),
       });
     } catch (error) {
       next(error);

@@ -288,6 +288,7 @@ function createEventHandler({
                 storagePath: storedImage.storagePath,
                 contentType: storedImage.contentType,
                 size: storedImage.size,
+                expiresAt: storedImage.expiresAt,
               }
             : {}),
         });
@@ -390,7 +391,10 @@ function createEventHandler({
               sourceQuoteToken: sourceReference.quoteToken,
               ...(sourceReference.url ? { sourceUrl: sourceReference.url } : {}),
               ...(sourceReference.storagePath
-                ? { sourceImagePath: sourceReference.storagePath }
+                ? {
+                    sourceImagePath: sourceReference.storagePath,
+                    sourceImageExpiresAt: sourceReference.expiresAt || null,
+                  }
                 : {}),
             }
           : {}),

@@ -24,8 +24,9 @@ test('LIFF 紀錄不暴露群組 ID 或圖片儲存路徑', () => {
       authorName: '王藥師',
       createdAt: 1000,
       sourceImagePath: 'private/image.jpg',
+      sourceImageExpiresAt: 2000,
       sourceId: 'G1',
-    }),
+    }, 1500),
     {
       shortId: 'N-ONE001',
       category: 'notice',
@@ -57,6 +58,7 @@ test('已驗證群組成員可以讀取紀錄及圖片', async (context) => {
             content: '測試公告',
             createdAt: 1000,
             sourceImagePath: 'private/image.jpg',
+            sourceImageExpiresAt: Date.now() + 100000,
           },
         ];
       },

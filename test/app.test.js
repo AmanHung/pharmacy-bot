@@ -138,6 +138,7 @@ test('有效排程密鑰會觸發每日交班摘要', async (context) => {
     status: 'sent',
     date: '2026-07-24',
     recordCount: 2,
+    removedImages: 0,
   });
   assert.equal(sendCount, 1);
 });

@@ -53,6 +53,7 @@ function createApplication() {
     handleEvent,
     sendDailySummary,
     liffRouter,
+    removeExpiredImages: imageStorage?.removeExpiredImages,
   });
 }
 

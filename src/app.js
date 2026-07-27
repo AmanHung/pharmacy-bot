@@ -7,6 +7,7 @@ function createExpressApp({
   handleEvent,
   sendDailySummary,
   liffRouter = null,
+  removeExpiredImages = null,
 }) {
   const app = express();
 
@@ -62,7 +63,10 @@ function createExpressApp({
 
     try {
       const result = await sendDailySummary();
-      response.status(200).json({ ok: true, ...result });
+      const removedImages = removeExpiredImages
+        ? await removeExpiredImages()
+        : 0;
+      response.status(200).json({ ok: true, ...result, removedImages });
     } catch (error) {
       console.error('Daily handover summary failed:', error);
       response.status(500).json({ ok: false });
