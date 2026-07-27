@@ -57,7 +57,6 @@ function createApplication() {
     handleEvent,
     sendDailySummary,
     liffRouter,
-    removeExpiredImages: imageStorage?.removeExpiredImages,
     removeExpiredHistory:
       config.liffGroupId &&
       typeof repository.removeCompletedRecordsBefore === 'function'
@@ -65,6 +64,13 @@ function createApplication() {
             repository.removeCompletedRecordsBefore(
               { type: 'group', id: config.liffGroupId },
               Date.now() - HISTORY_RETENTION_MS,
+              {
+                onRemove: async (record) => {
+                  if (record.sourceImagePath && imageStorage?.deleteImage) {
+                    await imageStorage.deleteImage(record.sourceImagePath);
+                  }
+                },
+              },
             )
         : null,
   });

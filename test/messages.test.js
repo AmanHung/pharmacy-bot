@@ -94,8 +94,13 @@ test('設定 LIFF 後功能選單提供私人資訊中心入口', () => {
     /https:\/\/liff\.line\.me\/123456-test\?groupId=G1/,
   );
   assert.match(
-    createJoinMessage('123456-test', 'G1'),
+    JSON.stringify(createJoinMessage('123456-test', 'G1')),
     /https:\/\/liff\.line\.me\/123456-test\?groupId=G1/,
+  );
+  assert.equal(createJoinMessage('123456-test', 'G1').type, 'flex');
+  assert.match(
+    JSON.stringify(createJoinMessage('123456-test', 'G1')),
+    /開啟本群組資訊中心/,
   );
 });
 

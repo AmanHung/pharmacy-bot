@@ -29,43 +29,159 @@ function createLiffUrl(liffId, groupId = null) {
 }
 
 function createJoinMessage(liffId, groupId = null) {
-  const lines = [
-    '大家好，我是藥劑科資訊小幫手。',
-    '可協助整理交班、缺換藥、公告與教育訓練資訊。',
-    '',
-    '【自動記錄】',
-    '訊息包含「交班」會記錄為交班資訊。',
-    '訊息包含「缺藥」、「換藥」、「鎖檔」或「開檔」會記錄為缺換藥資訊。',
-    '訊息包含「公告」會記錄為公告資訊。',
-    '訊息包含「上課」或「課程」會記錄為教育訓練資訊。',
-    '也可使用 /h、/m、/n、/e 加上內容，明確指定分類。',
-    '記錄成功時機器人不另外回覆，以減少群組訊息。',
+  const bodyContents = [
+    {
+      type: 'text',
+      text: '自動整理群組重要資訊',
+      weight: 'bold',
+      size: 'lg',
+      color: '#0B5D3B',
+    },
+    {
+      type: 'text',
+      text: '一般聊天不記錄；記錄成功不回覆，減少洗版。',
+      size: 'sm',
+      color: '#666666',
+      wrap: true,
+      margin: 'sm',
+    },
+    {
+      type: 'separator',
+      margin: 'lg',
+    },
+    {
+      type: 'text',
+      text: '自動記錄關鍵字',
+      weight: 'bold',
+      size: 'sm',
+      margin: 'lg',
+    },
+    {
+      type: 'text',
+      text: [
+        '交班　→ 交班',
+        '缺藥・換藥・鎖檔・開檔　→ 缺換藥',
+        '公告　→ 公告',
+        '上課・課程　→ 教育訓練',
+      ].join('\n'),
+      size: 'sm',
+      color: '#333333',
+      wrap: true,
+      margin: 'sm',
+    },
+    {
+      type: 'text',
+      text: '也可用 /h、/m、/n、/e 明確指定分類。',
+      size: 'xs',
+      color: '#777777',
+      wrap: true,
+      margin: 'sm',
+    },
+    {
+      type: 'separator',
+      margin: 'lg',
+    },
+    {
+      type: 'text',
+      text: '圖片與處理',
+      weight: 'bold',
+      size: 'sm',
+      margin: 'lg',
+    },
+    {
+      type: 'text',
+      text: [
+        '先傳圖片，再回覆圖片輸入分類內容。',
+        '交班可標示「已處理」；其餘可「刪除」。',
+        '最近處理保留 30 天，期間可查看操作者並恢復。',
+      ].join('\n'),
+      size: 'xs',
+      color: '#666666',
+      wrap: true,
+      margin: 'sm',
+    },
+    {
+      type: 'text',
+      text: '每日 08:00 推播未處理交班及當天課程。',
+      size: 'xs',
+      color: '#0B5D3B',
+      weight: 'bold',
+      wrap: true,
+      margin: 'lg',
+    },
   ];
 
+  const footerContents = [];
   if (liffId) {
-    lines.push(
-      '',
-      '【私人資訊中心】',
-      '可搜尋及分類查看群組已記錄的資訊，不會在群組產生查詢訊息。',
-      createLiffUrl(liffId, groupId),
-      '首次開啟需以 LINE 授權，且只有目前仍在本群組的成員可以查看。',
-    );
+    footerContents.push({
+      type: 'button',
+      style: 'primary',
+      height: 'sm',
+      color: '#0B7A4B',
+      action: {
+        type: 'uri',
+        label: '開啟本群組資訊中心',
+        uri: createLiffUrl(liffId, groupId),
+      },
+    });
+    footerContents.push({
+      type: 'text',
+      text: '只限目前仍在本群組的成員查看',
+      size: 'xxs',
+      color: '#888888',
+      align: 'center',
+      wrap: true,
+      margin: 'sm',
+    });
   }
 
-  lines.push(
-    '',
-    '【圖片、連結與處理】',
-    '圖片資訊：先傳送圖片，再回覆該圖片輸入分類內容；原圖可在資訊中心查看 3 個月。',
-    '訊息包含網址時，資訊中心會提供可直接開啟的連結。',
-    '交班可在資訊中心點「已處理」；缺換藥、公告及上課資訊可點「刪除」。',
-    '已處理或刪除的資訊會保留在「最近處理」30 天，期間可查看操作者並恢復。',
-    '',
-    '【每日提醒】',
-    '每日 08:00 會推播未處理交班摘要及當天課程提醒。',
-    '',
-    '一般聊天不會被記錄，請安心使用。',
-  );
-  return lines.join('\n');
+  return {
+    type: 'flex',
+    altText: '藥劑科資訊小幫手｜功能說明與資訊中心',
+    contents: {
+      type: 'bubble',
+      size: 'mega',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#0B5D3B',
+        paddingAll: 'lg',
+        contents: [
+          {
+            type: 'text',
+            text: '藥劑科資訊小幫手',
+            color: '#FFFFFF',
+            weight: 'bold',
+            size: 'xl',
+          },
+          {
+            type: 'text',
+            text: '功能說明｜本群組專屬入口',
+            color: '#D7F2E4',
+            size: 'xs',
+            margin: 'xs',
+          },
+        ],
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: 'lg',
+        contents: bodyContents,
+      },
+      ...(footerContents.length > 0
+        ? {
+            footer: {
+              type: 'box',
+              layout: 'vertical',
+              spacing: 'sm',
+              paddingAll: 'lg',
+              contents: footerContents,
+            },
+          }
+        : {}),
+    },
+  };
 }
 
 const HELP_MESSAGE = [

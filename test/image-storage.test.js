@@ -40,7 +40,9 @@ test('將 LINE 圖片保存至群組專屬私有路徑', async () => {
   assert.match(saved.path, /message-1$/);
   assert.equal(Buffer.from(saved.value.data, 'base64').toString(), 'image-data');
   assert.equal(saved.value.contentType, 'image/jpeg');
+  assert.equal(saved.value.expiresAt, undefined);
   assert.equal(result.storagePath, saved.path);
+  assert.equal(result.expiresAt, undefined);
 });
 
 test('從私有資料庫讀取圖片', async () => {
@@ -75,35 +77,27 @@ test('從私有資料庫讀取圖片', async () => {
   assert.equal(result.buffer.toString(), 'stored-image');
 });
 
-test('清除保存超過三個月的圖片', async () => {
-  let updates;
+test('圖片只在紀錄永久清除時依儲存路徑刪除', async () => {
+  let removedPath;
   const imageStorage = createImageStorage({
     blobClient: {},
     database: {
       ref(path) {
-        assert.equal(path, 'pharmacy_images');
         return {
-          async once() {
-            return {
-              val() {
-                return {
-                  group1: {
-                    old: { expiresAt: 999 },
-                    current: { expiresAt: 2000 },
-                  },
-                };
-              },
-            };
-          },
-          async update(value) {
-            updates = value;
+          async remove() {
+            removedPath = path;
           },
         };
       },
     },
   });
 
-  const removed = await imageStorage.removeExpiredImages(1000);
-  assert.equal(removed, 1);
-  assert.deepEqual(updates, { 'group1/old': null });
+  const removed = await imageStorage.deleteImage(
+    'pharmacy_images/group1/message-1',
+  );
+  const rejected = await imageStorage.deleteImage('other/path');
+
+  assert.equal(removed, true);
+  assert.equal(rejected, false);
+  assert.equal(removedPath, 'pharmacy_images/group1/message-1');
 });

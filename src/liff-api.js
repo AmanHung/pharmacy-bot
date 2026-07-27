@@ -14,9 +14,7 @@ function serializeRecord(record, currentTime = Date.now()) {
     createdAt: record.createdAt,
     expiresAt: record.expiresAt || null,
     hasImage: Boolean(
-      record.sourceImagePath &&
-        record.sourceImageExpiresAt &&
-        record.sourceImageExpiresAt > currentTime,
+      record.sourceImagePath,
     ),
     sourceUrl: record.sourceUrl || null,
   };
@@ -42,6 +40,12 @@ function createLiffRouter({
     return { type: 'group', id: request.liffMember.groupId };
   }
 
+  async function deleteRecordImage(record) {
+    if (record.sourceImagePath && imageStorage?.deleteImage) {
+      await imageStorage.deleteImage(record.sourceImagePath);
+    }
+  }
+
   router.use(async (request, response, next) => {
     try {
       request.liffMember = await authorize(request);
@@ -56,7 +60,9 @@ function createLiffRouter({
       const scope = getScope(request);
       const currentTime = Date.now();
       if (typeof repository.removeExpiredEducationRecords === 'function') {
-        await repository.removeExpiredEducationRecords(scope, currentTime);
+        await repository.removeExpiredEducationRecords(scope, currentTime, {
+          onRemove: deleteRecordImage,
+        });
       }
       const records = await repository.listRecords(scope, {
         activeAt: currentTime,
@@ -78,7 +84,9 @@ function createLiffRouter({
       const currentTime = Date.now();
       const cutoff = currentTime - HISTORY_RETENTION_MS;
       if (typeof repository.removeCompletedRecordsBefore === 'function') {
-        await repository.removeCompletedRecordsBefore(scope, cutoff);
+        await repository.removeCompletedRecordsBefore(scope, cutoff, {
+          onRemove: deleteRecordImage,
+        });
       }
       const records = await repository.listCompletedRecords(scope, {
         completedSince: cutoff,

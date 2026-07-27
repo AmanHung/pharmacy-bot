@@ -130,6 +130,12 @@ function createEventHandler({
     );
   }
 
+  async function deleteRecordImage(record) {
+    if (record.sourceImagePath && imageStorage?.deleteImage) {
+      await imageStorage.deleteImage(record.sourceImagePath);
+    }
+  }
+
   async function completeRecord(
     event,
     scope,
@@ -169,7 +175,9 @@ function createEventHandler({
       command.category === 'education' &&
       typeof repository.removeExpiredEducationRecords === 'function'
     ) {
-      await repository.removeExpiredEducationRecords(scope, currentTime);
+      await repository.removeExpiredEducationRecords(scope, currentTime, {
+        onRemove: deleteRecordImage,
+      });
     }
     const filters = {
       category: command.category,
@@ -276,7 +284,6 @@ function createEventHandler({
                 storagePath: storedImage.storagePath,
                 contentType: storedImage.contentType,
                 size: storedImage.size,
-                expiresAt: storedImage.expiresAt,
               }
             : {}),
         });
@@ -384,7 +391,6 @@ function createEventHandler({
               ...(sourceReference.storagePath
                 ? {
                     sourceImagePath: sourceReference.storagePath,
-                    sourceImageExpiresAt: sourceReference.expiresAt || null,
                   }
                 : {}),
             }

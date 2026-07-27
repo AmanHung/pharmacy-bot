@@ -112,8 +112,7 @@ test('加入群組時回覆簡短功能介紹', async () => {
   });
   assert.equal(replies.length, 1);
   assert.deepEqual(replies[0].messages[0], {
-    type: 'text',
-    text: createJoinMessage(null),
+    ...createJoinMessage(null),
   });
 });
 
@@ -130,14 +129,16 @@ test('加入群組時提供可釘選的私人資訊中心說明', async () => {
     source: { type: 'group', groupId: 'G1' },
   });
 
-  const text = replies[0].messages[0].text;
-  assert.match(text, /私人資訊中心/);
-  assert.match(text, /https:\/\/liff\.line\.me\/123456-test/);
-  assert.match(text, /自動記錄/);
-  assert.match(text, /每日 08:00/);
-  assert.doesNotMatch(text, /設為公告/);
-  assert.doesNotMatch(text, /輸入 \/help/);
-  assert.match(text, /只有目前仍在本群組的成員可以查看/);
+  const message = replies[0].messages[0];
+  const serialized = JSON.stringify(message);
+  assert.equal(message.type, 'flex');
+  assert.match(serialized, /開啟本群組資訊中心/);
+  assert.match(serialized, /https:\/\/liff\.line\.me\/123456-test\?groupId=G1/);
+  assert.match(serialized, /自動記錄關鍵字/);
+  assert.match(serialized, /每日 08:00/);
+  assert.doesNotMatch(serialized, /設為公告/);
+  assert.doesNotMatch(serialized, /輸入 \/help/);
+  assert.match(serialized, /只限目前仍在本群組的成員查看/);
 });
 
 test('@ 機器人時不自動回覆功能選單', async () => {
@@ -179,9 +180,10 @@ test('/介紹 會重送可釘選的資訊中心說明', async () => {
   await handler(textEvent('/介紹'));
 
   assert.equal(replies.length, 1);
-  assert.match(replies[0].messages[0].text, /私人資訊中心/);
-  assert.match(replies[0].messages[0].text, /自動記錄/);
-  assert.doesNotMatch(replies[0].messages[0].text, /設為公告/);
+  const serialized = JSON.stringify(replies[0].messages[0]);
+  assert.match(serialized, /開啟本群組資訊中心/);
+  assert.match(serialized, /自動記錄關鍵字/);
+  assert.doesNotMatch(serialized, /設為公告/);
 });
 
 test('新增指令會保存分類資料且不產生群組回覆', async () => {

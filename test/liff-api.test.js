@@ -190,3 +190,40 @@ test('LIFF 最近處理區顯示操作者並可恢復紀錄', async (context) =>
   assert.equal(restoration.details.restoredByName, '王藥師');
   assert.equal(restorePayload.record.shortId, 'H-DONE01');
 });
+
+test('最近處理永久清除時同步刪除所屬圖片', async (context) => {
+  let deletedImagePath;
+  const router = createLiffRouter({
+    authorize: async () => ({
+      userId: 'U1',
+      displayName: '王藥師',
+      groupId: 'G1',
+    }),
+    repository: {
+      async removeCompletedRecordsBefore(_scope, _cutoff, options) {
+        await options.onRemove({
+          sourceImagePath: 'pharmacy_images/group/message-1',
+        });
+        return 1;
+      },
+      async listCompletedRecords() {
+        return [];
+      },
+    },
+    imageStorage: {
+      async deleteImage(path) {
+        deletedImagePath = path;
+      },
+    },
+  });
+  const server = await startRouter(router);
+  context.after(server.close);
+
+  const response = await fetch(`${server.baseUrl}/api/liff/history`);
+
+  assert.equal(response.status, 200);
+  assert.equal(
+    deletedImagePath,
+    'pharmacy_images/group/message-1',
+  );
+});

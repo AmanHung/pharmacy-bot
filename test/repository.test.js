@@ -387,6 +387,7 @@ test('最近處理紀錄可恢復並清除超過一個月的資料', async () =>
       return reference;
     },
   });
+  const permanentlyRemoved = [];
 
   const restored = await repository.restoreRecord(
     { type: 'group', id: 'G1' },
@@ -400,6 +401,11 @@ test('最近處理紀錄可恢復並清除超過一個月的資料', async () =>
   const removedCount = await repository.removeCompletedRecordsBefore(
     { type: 'group', id: 'G1' },
     1000,
+    {
+      onRemove(record) {
+        permanentlyRemoved.push(record.shortId);
+      },
+    },
   );
 
   assert.equal(restored.status, 'open');
@@ -407,6 +413,7 @@ test('最近處理紀錄可恢復並清除超過一個月的資料', async () =>
   assert.equal(records.recent.restoredByName, '王藥師');
   assert.equal(removedCount, 1);
   assert.deepEqual(removed, { expired: null });
+  assert.deepEqual(permanentlyRemoved, ['N-EXPIRED']);
 });
 
 test('expired education records are removed from the scope', async () => {
@@ -453,10 +460,17 @@ test('expired education records are removed from the scope', async () => {
     },
   });
 
+  const permanentlyRemoved = [];
   await repository.removeExpiredEducationRecords(
     { type: 'group', id: 'G1' },
     2000,
+    {
+      onRemove(record) {
+        permanentlyRemoved.push(record.category);
+      },
+    },
   );
 
   assert.deepEqual(removedRecords, { 'expired-course': null });
+  assert.deepEqual(permanentlyRemoved, ['education']);
 });

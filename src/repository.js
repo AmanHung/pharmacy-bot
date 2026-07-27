@@ -66,9 +66,14 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
     return snapshot.exists() ? snapshot.val() : null;
   }
 
-  async function removeExpiredEducationRecords(scope, activeAt) {
+  async function removeExpiredEducationRecords(
+    scope,
+    activeAt,
+    { onRemove = null } = {},
+  ) {
     const snapshot = await recordsRef(scope).once('value');
     const updates = {};
+    const removedRecords = [];
 
     snapshot.forEach((childSnapshot) => {
       const record = childSnapshot.val();
@@ -79,12 +84,17 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
         record.expiresAt < activeAt
       ) {
         updates[childSnapshot.key] = null;
+        removedRecords.push(record);
       }
     });
 
     if (Object.keys(updates).length > 0) {
       await recordsRef(scope).update(updates);
     }
+    if (onRemove) {
+      await Promise.all(removedRecords.map((record) => onRemove(record)));
+    }
+    return removedRecords.length;
   }
 
   async function listRecords(scope, filters = {}) {
@@ -244,9 +254,14 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
     };
   }
 
-  async function removeCompletedRecordsBefore(scope, cutoff) {
+  async function removeCompletedRecordsBefore(
+    scope,
+    cutoff,
+    { onRemove = null } = {},
+  ) {
     const snapshot = await recordsRef(scope).once('value');
     const updates = {};
+    const removedRecords = [];
     snapshot.forEach((childSnapshot) => {
       const record = childSnapshot.val();
       if (
@@ -255,10 +270,14 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
         record.completedAt < cutoff
       ) {
         updates[childSnapshot.key] = null;
+        removedRecords.push(record);
       }
     });
     if (Object.keys(updates).length > 0) {
       await recordsRef(scope).update(updates);
+    }
+    if (onRemove) {
+      await Promise.all(removedRecords.map((record) => onRemove(record)));
     }
     return Object.keys(updates).length;
   }
