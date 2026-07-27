@@ -2,8 +2,8 @@ const { parseCommand } = require('./commands');
 const { extractEducationDeadline, extractNoticeDeadline } = require('./deadlines');
 const { createShortId } = require('./identifiers');
 const {
-  FUNCTION_MENU_MESSAGE,
   JOIN_MESSAGE,
+  createFunctionMenuMessage,
   formatCompletedRecord,
   formatInvalidCommand,
   formatQueryResult,
@@ -102,6 +102,7 @@ function createEventHandler({
   client,
   repository,
   imageStorage = null,
+  liffId = null,
   allowedGroupIds = new Set(),
   adminUserIds = new Set(),
   now = () => Date.now(),
@@ -332,7 +333,7 @@ function createEventHandler({
     }
 
     if (command.type === 'help') {
-      return reply(event, FUNCTION_MENU_MESSAGE);
+      return reply(event, createFunctionMenuMessage(liffId));
     }
 
     if (command.type === 'add') {

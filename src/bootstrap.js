@@ -26,6 +26,7 @@ function createApplication() {
     client,
     repository,
     imageStorage,
+    liffId: config.liffId,
     allowedGroupIds: config.allowedGroupIds,
     adminUserIds: config.adminUserIds,
   });

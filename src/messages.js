@@ -239,6 +239,26 @@ const FUNCTION_MENU_MESSAGE = {
   },
 };
 
+function createFunctionMenuMessage(liffId) {
+  if (!liffId) {
+    return FUNCTION_MENU_MESSAGE;
+  }
+
+  const message = JSON.parse(JSON.stringify(FUNCTION_MENU_MESSAGE));
+  message.contents.body.contents.unshift(
+    createMenuRow('私人資訊中心', '開啟', {
+      type: 'uri',
+      label: '開啟私人資訊中心',
+      uri: `https://liff.line.me/${encodeURIComponent(liffId)}`,
+    }),
+    {
+      type: 'separator',
+      margin: 'md',
+    },
+  );
+  return message;
+}
+
 function getCategoryLabel(category) {
   return CATEGORY_LABELS[category] || '資訊';
 }
@@ -582,6 +602,7 @@ module.exports = {
   HELP_MESSAGE,
   JOIN_MESSAGE,
   QUERY_PAGE_SIZE,
+  createFunctionMenuMessage,
   formatAge,
   formatCompletedRecord,
   formatInvalidCommand,
