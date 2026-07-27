@@ -179,3 +179,15 @@ test('LIFF 資訊中心頁面可載入且未設定 API 時安全拒絕', async (
   const apiResponse = await fetch(`${server.baseUrl}/api/liff/records`);
   assert.equal(apiResponse.status, 503);
 });
+
+test('LIFF 登入過期時會自動重新驗證並保留群組範圍', async (context) => {
+  const server = await startTestServer(async () => {});
+  context.after(server.close);
+
+  const response = await fetch(`${server.baseUrl}/liff`);
+  const html = await response.text();
+
+  assert.match(html, /response\.status === 401/);
+  assert.match(html, /restartLineLogin/);
+  assert.match(html, /url\.searchParams\.set\('groupId', state\.groupId\)/);
+});

@@ -161,6 +161,19 @@ function createLiffPage(liffId) {
     const imageDialog = document.getElementById('imageDialog');
     const imagePreview = document.getElementById('imagePreview');
 
+    function scopedRedirectUri() {
+      const url = new URL('/liff', window.location.origin);
+      if (state.groupId) {
+        url.searchParams.set('groupId', state.groupId);
+      }
+      return url.href;
+    }
+
+    function restartLineLogin() {
+      liff.logout();
+      liff.login({ redirectUri: scopedRedirectUri() });
+    }
+
     function formatDate(timestamp) {
       return new Intl.DateTimeFormat('zh-TW', {
         timeZone: 'Asia/Taipei',
@@ -191,6 +204,10 @@ function createLiffPage(liffId) {
             : {})
         }
       });
+      if (response.status === 401) {
+        restartLineLogin();
+        throw new Error('正在重新驗證 LINE 身分…');
+      }
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
         throw new Error(payload.error || '讀取失敗，請稍後再試。');
@@ -413,7 +430,7 @@ function createLiffPage(liffId) {
         window.sessionStorage.getItem('pharmacyLiffGroupId') ||
         '';
       if (!liff.isLoggedIn()) {
-        liff.login({ redirectUri: window.location.href });
+        liff.login({ redirectUri: scopedRedirectUri() });
         return;
       }
       state.idToken = liff.getIDToken();
