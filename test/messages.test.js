@@ -102,6 +102,14 @@ test('設定 LIFF 後功能選單提供私人資訊中心入口', () => {
     JSON.stringify(createJoinMessage('123456-test', 'G1')),
     /開啟本群組資訊中心/,
   );
+  assert.match(
+    JSON.stringify(createJoinMessage('123456-test', 'G1')),
+    /圖片需使用.*回覆.*分類關鍵字/,
+  );
+  assert.doesNotMatch(
+    JSON.stringify(createJoinMessage('123456-test', 'G1')),
+    /最近處理保留/,
+  );
 });
 
 test('公告包含網址時提供可直接開啟的連結按鈕', () => {

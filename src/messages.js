@@ -90,11 +90,7 @@ function createJoinMessage(liffId, groupId = null) {
     },
     {
       type: 'text',
-      text: [
-        '先傳圖片，再回覆圖片輸入分類內容。',
-        '交班可標示「已處理」；其餘可「刪除」。',
-        '最近處理保留 30 天，期間可查看操作者並恢復。',
-      ].join('\n'),
+      text: '圖片需使用「回覆」，並輸入分類關鍵字（交班、缺藥／換藥、公告或上課）。',
       size: 'xs',
       color: '#666666',
       wrap: true,
