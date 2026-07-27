@@ -14,17 +14,28 @@ const { getChatScope, isScopeAllowed } = require('./scope');
 const RECENT_QUERY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const QUERY_RESULT_LIMIT = 100;
 
-function getAutomaticRecordCategory(text) {
+function hasIndividualMemberMention(mention) {
+  return Boolean(
+    mention?.mentionees?.some(
+      (mentionee) =>
+        mentionee.type === 'user' &&
+        mentionee.isSelf !== true &&
+        Boolean(mentionee.userId),
+    ),
+  );
+}
+
+function getAutomaticRecordCategory(text, mention = null) {
   const normalized = String(text || '').replace(/\s+/gu, '');
   const categories = [
     { category: 'medication', keywords: /(缺藥|換藥|鎖檔|開檔)/u },
     { category: 'handover', keywords: /交班/u },
     { category: 'education', keywords: /(上課|課程)/u },
-    { category: 'notice', keywords: /公告/u },
+    { category: 'notice', keywords: /(?:公告|@all)/iu },
   ];
   const match = categories.find(({ keywords }) => keywords.test(normalized));
   if (!match) {
-    return false;
+    return hasIndividualMemberMention(mention) ? 'handover' : false;
   }
 
   if (
@@ -311,7 +322,10 @@ function createEventHandler({
 
     let command = parseCommand(event.message.text);
     if (command.type === 'ignore') {
-      const automaticCategory = getAutomaticRecordCategory(event.message.text);
+      const automaticCategory = getAutomaticRecordCategory(
+        event.message.text,
+        event.message.mention,
+      );
       if (!automaticCategory) {
         return null;
       }

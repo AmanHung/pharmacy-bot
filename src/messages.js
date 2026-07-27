@@ -60,8 +60,9 @@ function createJoinMessage(liffId, groupId = null) {
       type: 'text',
       text: [
         '交班　→ 交班',
+        '標註個別同仁　→ 交班',
         '缺藥・換藥・鎖檔・開檔　→ 缺換藥',
-        '公告　→ 公告',
+        '公告・@All　→ 公告',
         '上課・課程　→ 教育訓練',
       ].join('\n'),
       size: 'sm',

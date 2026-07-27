@@ -161,6 +161,59 @@ test('@ 機器人時不自動回覆功能選單', async () => {
   assert.equal(replies.length, 0);
 });
 
+test('標註個別群組成員的訊息會自動記錄為交班', async () => {
+  let savedRecord;
+  const { handler } = createFixtures({
+    async saveRecord(_scope, _eventKey, record) {
+      savedRecord = record;
+      return { record, duplicate: false };
+    },
+  });
+  const event = textEvent('@惠珠 廠商明天會更換設備');
+  event.message.mention = {
+    mentionees: [
+      {
+        index: 0,
+        length: 3,
+        type: 'user',
+        userId: 'UMEMBER',
+        isSelf: false,
+      },
+    ],
+  };
+
+  await handler(event);
+
+  assert.equal(savedRecord.category, 'handover');
+  assert.equal(savedRecord.content, '@惠珠 廠商明天會更換設備');
+});
+
+test('標註成員的訊息仍優先採用明確分類關鍵字', async () => {
+  let savedRecord;
+  const { handler } = createFixtures({
+    async saveRecord(_scope, _eventKey, record) {
+      savedRecord = record;
+      return { record, duplicate: false };
+    },
+  });
+  const event = textEvent('@惠珠 川芎茶調散鎖檔');
+  event.message.mention = {
+    mentionees: [
+      {
+        index: 0,
+        length: 3,
+        type: 'user',
+        userId: 'UMEMBER',
+        isSelf: false,
+      },
+    ],
+  };
+
+  await handler(event);
+
+  assert.equal(savedRecord.category, 'medication');
+});
+
 test('/help 會回覆功能選單', async () => {
   const { handler, replies } = createFixtures();
 
@@ -726,8 +779,34 @@ test('handover, education, and notice keywords select their matching categories'
   await handler(textEvent('夜班交班：待確認住院藥品'));
   await handler(textEvent('下週上課時間已確認'));
   await handler(textEvent('重要公告：請同仁閱讀'));
+  await handler(
+    textEvent('@All 請同仁閱讀最新通知', {
+      webhookEventId: '01EVENTNOTICEALL',
+      message: {
+        ...textEvent('').message,
+        id: 'message-notice-all',
+        text: '@All 請同仁閱讀最新通知',
+      },
+    }),
+  );
+  await handler(
+    textEvent('@all 請再次確認', {
+      webhookEventId: '01EVENTNOTICELOWER',
+      message: {
+        ...textEvent('').message,
+        id: 'message-notice-lower',
+        text: '@all 請再次確認',
+      },
+    }),
+  );
 
-  assert.deepEqual(savedCategories, ['handover', 'education', 'notice']);
+  assert.deepEqual(savedCategories, [
+    'handover',
+    'education',
+    'notice',
+    'notice',
+    'notice',
+  ]);
 });
 
 test('when automatic keywords overlap, medication takes priority', async () => {
