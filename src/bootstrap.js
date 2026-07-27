@@ -3,10 +3,7 @@ const { createExpressApp } = require('./app');
 const { loadConfig } = require('./config');
 const { createDailySummarySender } = require('./daily-summary');
 const { createEventHandler } = require('./event-handler');
-const {
-  createFirebaseDatabase,
-  createFirebaseStorage,
-} = require('./firebase');
+const { createFirebaseDatabase } = require('./firebase');
 const { createImageStorage } = require('./image-storage');
 const { createLiffRouter } = require('./liff-api');
 const { createLiffAuthorizer } = require('./liff-auth');
@@ -18,14 +15,13 @@ function createApplication() {
   const repository = createRecordRepository(database, {
     drugAliases: config.drugAliases,
   });
-  const storage = createFirebaseStorage(config);
   const client = new line.messagingApi.MessagingApiClient({
     channelAccessToken: config.channelAccessToken,
   });
   const blobClient = new line.messagingApi.MessagingApiBlobClient({
     channelAccessToken: config.channelAccessToken,
   });
-  const imageStorage = createImageStorage({ storage, blobClient });
+  const imageStorage = createImageStorage({ database, blobClient });
   const handleEvent = createEventHandler({
     client,
     repository,

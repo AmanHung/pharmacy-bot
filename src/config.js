@@ -50,8 +50,6 @@ function loadConfig() {
       process.env.LIFF_GROUP_ID?.trim() ||
       process.env.DAILY_SUMMARY_GROUP_ID?.trim() ||
       null,
-    firebaseStorageBucket:
-      process.env.FIREBASE_STORAGE_BUCKET?.trim() || null,
   };
 }
 

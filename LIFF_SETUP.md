@@ -5,7 +5,7 @@
 - 使用者第一次開啟時，透過 LINE Login 授權，不需要建立額外帳號或密碼。
 - 每次讀取資料、圖片或執行「已處理／刪除」時，後端都會向 LINE Messaging API 查驗該使用者目前是否仍是指定群組成員。
 - 使用者離開或被移出群組後，後續請求會立即被拒絕。
-- Firebase Storage 不提供公開讀取；所有圖片只能透過已驗證的 LIFF API 取得。
+- 圖片保存在 Firebase Realtime Database 的私有區域；資料庫規則全面拒絕前端直連，所有圖片只能透過已驗證的 LIFF API 取得。
 - 已下載或已截圖的圖片無法遠端收回，這是所有網頁系統的共同限制。
 
 ## LINE Developers Console
@@ -23,7 +23,6 @@ LINE Login 與 Messaging API 必須位於同一個 Provider，兩邊取得的 LI
 LIFF_ID=
 LIFF_CHANNEL_ID=
 LIFF_GROUP_ID=
-FIREBASE_STORAGE_BUCKET=
 ```
 
 `LIFF_GROUP_ID` 可留空並沿用 `DAILY_SUMMARY_GROUP_ID`。本次測試應指向「豐醫藥劑科緊急聯絡群」。
@@ -36,3 +35,4 @@ FIREBASE_STORAGE_BUCKET=
 4. 在 LIFF 資訊中心查詢後，可按「查看原圖」。
 
 只有功能上線後新傳送的圖片會保存私人副本；LINE 不允許機器人回溯下載過去的群組圖片。
+單張圖片上限為 6 MB，以避免超過 Realtime Database 的單次寫入限制。

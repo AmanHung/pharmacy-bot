@@ -20,15 +20,11 @@ test('將 LINE 圖片保存至群組專屬私有路徑', async () => {
         return Readable.from([Buffer.from('image-data')]);
       },
     },
-    storage: {
-      bucket() {
+    database: {
+      ref(path) {
         return {
-          file(path) {
-            return {
-              async save(buffer, options) {
-                saved = { path, buffer, options };
-              },
-            };
+          async set(value) {
+            saved = { path, value };
           },
         };
       },
@@ -40,9 +36,38 @@ test('將 LINE 圖片保存至群組專屬私有路徑', async () => {
     'message-1',
   );
 
-  assert.match(saved.path, /^pharmacy-images\//);
-  assert.match(saved.path, /message-1\.jpg$/);
-  assert.equal(saved.buffer.toString(), 'image-data');
-  assert.equal(saved.options.metadata.cacheControl, 'private, no-store, max-age=0');
+  assert.match(saved.path, /^pharmacy_images\//);
+  assert.match(saved.path, /message-1$/);
+  assert.equal(Buffer.from(saved.value.data, 'base64').toString(), 'image-data');
+  assert.equal(saved.value.contentType, 'image/jpeg');
   assert.equal(result.storagePath, saved.path);
+});
+
+test('從私有資料庫讀取圖片', async () => {
+  const imageStorage = createImageStorage({
+    blobClient: {},
+    database: {
+      ref(path) {
+        assert.equal(path, 'pharmacy_images/group/message-1');
+        return {
+          async once() {
+            return {
+              val() {
+                return {
+                  contentType: 'image/png',
+                  data: Buffer.from('stored-image').toString('base64'),
+                };
+              },
+            };
+          },
+        };
+      },
+    },
+  });
+
+  const result = await imageStorage.readImage(
+    'pharmacy_images/group/message-1',
+  );
+  assert.equal(result.contentType, 'image/png');
+  assert.equal(result.buffer.toString(), 'stored-image');
 });

@@ -1,6 +1,7 @@
 const { toFirebaseScopeKey } = require('./scope');
 
 const DEFAULT_IMAGE_CONTENT_TYPE = 'image/jpeg';
+const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
 
 async function readableToBuffer(readable) {
   const chunks = [];
@@ -10,29 +11,29 @@ async function readableToBuffer(readable) {
   return Buffer.concat(chunks);
 }
 
-function createImageStorage({ storage, blobClient }) {
-  if (!storage || !blobClient) {
+function createImageStorage({ database, blobClient }) {
+  if (!database || !blobClient) {
     return null;
   }
-
-  const bucket = storage.bucket();
 
   return {
     async saveLineImage(scope, messageId) {
       const content = await blobClient.getMessageContent(messageId);
       const buffer = await readableToBuffer(content);
+      if (buffer.length > MAX_IMAGE_BYTES) {
+        throw new Error('LINE image exceeds the private storage size limit.');
+      }
       const storagePath = [
-        'pharmacy-images',
+        'pharmacy_images',
         toFirebaseScopeKey(scope),
-        `${messageId}.jpg`,
+        messageId,
       ].join('/');
 
-      await bucket.file(storagePath).save(buffer, {
-        resumable: false,
-        metadata: {
-          contentType: DEFAULT_IMAGE_CONTENT_TYPE,
-          cacheControl: 'private, no-store, max-age=0',
-        },
+      await database.ref(storagePath).set({
+        contentType: DEFAULT_IMAGE_CONTENT_TYPE,
+        data: buffer.toString('base64'),
+        size: buffer.length,
+        createdAt: Date.now(),
       });
 
       return {
@@ -43,20 +44,21 @@ function createImageStorage({ storage, blobClient }) {
     },
 
     async readImage(storagePath) {
-      const file = bucket.file(storagePath);
-      const [exists] = await file.exists();
-      if (!exists) {
+      if (!String(storagePath).startsWith('pharmacy_images/')) {
         return null;
       }
 
-      const [metadata] = await file.getMetadata();
-      const [buffer] = await file.download();
+      const snapshot = await database.ref(storagePath).once('value');
+      const stored = snapshot.val();
+      if (!stored?.data) {
+        return null;
+      }
       return {
-        buffer,
-        contentType: metadata.contentType || DEFAULT_IMAGE_CONTENT_TYPE,
+        buffer: Buffer.from(stored.data, 'base64'),
+        contentType: stored.contentType || DEFAULT_IMAGE_CONTENT_TYPE,
       };
     },
   };
 }
 
-module.exports = { createImageStorage, readableToBuffer };
+module.exports = { createImageStorage, readableToBuffer, MAX_IMAGE_BYTES };
