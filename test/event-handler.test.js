@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createEventHandler } = require('../src/event-handler');
+const { createJoinMessage } = require('../src/messages');
 
 function createFixtures(repositoryOverrides = {}, handlerOptions = {}) {
   const replies = [];
@@ -112,13 +113,28 @@ test('加入群組時回覆簡短功能介紹', async () => {
   assert.equal(replies.length, 1);
   assert.deepEqual(replies[0].messages[0], {
     type: 'text',
-    text: [
-      '大家好，我是藥劑科資訊小幫手。',
-      '可協助整理及查詢交班、缺換藥、公告與教育訓練資訊。',
-      '輸入 /help，即可開啟功能選單。',
-      '一般聊天不會被記錄，請安心使用。',
-    ].join('\n'),
+    text: createJoinMessage(null),
   });
+});
+
+test('加入群組時提供可釘選的私人資訊中心說明', async () => {
+  const { handler, replies } = createFixtures(
+    {},
+    { liffId: '123456-test' },
+  );
+
+  await handler({
+    type: 'join',
+    replyToken: 'reply-token',
+    timestamp: 1721779199000,
+    source: { type: 'group', groupId: 'G1' },
+  });
+
+  const text = replies[0].messages[0].text;
+  assert.match(text, /私人資訊中心/);
+  assert.match(text, /https:\/\/liff\.line\.me\/123456-test/);
+  assert.match(text, /設為公告/);
+  assert.match(text, /只有目前仍在本群組的成員可以查看/);
 });
 
 test('@ 機器人時不自動回覆功能選單', async () => {

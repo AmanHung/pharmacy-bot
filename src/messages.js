@@ -21,6 +21,32 @@ const JOIN_MESSAGE = [
   '一般聊天不會被記錄，請安心使用。',
 ].join('\n');
 
+function createJoinMessage(liffId) {
+  const lines = [
+    '大家好，我是藥劑科資訊小幫手。',
+    '可協助整理交班、缺換藥、公告與教育訓練資訊。',
+  ];
+
+  if (liffId) {
+    lines.push(
+      '',
+      '【私人資訊中心】',
+      '可私下查詢群組已記錄的資訊，不會在群組產生查詢訊息。',
+      `https://liff.line.me/${encodeURIComponent(liffId)}`,
+      '首次開啟需以 LINE 授權，且只有目前仍在本群組的成員可以查看。',
+      '',
+      '請管理員將這則訊息設為公告，方便同仁隨時開啟資訊中心。',
+    );
+  }
+
+  lines.push(
+    '',
+    '輸入 /help，可開啟完整功能選單。',
+    '一般聊天不會被記錄，請安心使用。',
+  );
+  return lines.join('\n');
+}
+
 const HELP_MESSAGE = [
   '藥劑科資訊機器人指令：',
   '',
@@ -603,6 +629,7 @@ module.exports = {
   JOIN_MESSAGE,
   QUERY_PAGE_SIZE,
   createFunctionMenuMessage,
+  createJoinMessage,
   formatAge,
   formatCompletedRecord,
   formatInvalidCommand,

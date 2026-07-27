@@ -2,8 +2,8 @@ const { parseCommand } = require('./commands');
 const { extractEducationDeadline, extractNoticeDeadline } = require('./deadlines');
 const { createShortId } = require('./identifiers');
 const {
-  JOIN_MESSAGE,
   createFunctionMenuMessage,
+  createJoinMessage,
   formatCompletedRecord,
   formatInvalidCommand,
   formatQueryResult,
@@ -230,7 +230,7 @@ function createEventHandler({
         groupName,
         registeredAt,
       });
-      return reply(event, JOIN_MESSAGE);
+      return reply(event, createJoinMessage(liffId));
     }
 
     if (event.type === 'unsend' && event.unsend?.messageId) {
