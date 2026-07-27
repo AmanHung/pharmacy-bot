@@ -14,6 +14,26 @@ const { getChatScope, isScopeAllowed } = require('./scope');
 const RECENT_QUERY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const QUERY_RESULT_LIMIT = 100;
 
+function isCompletionReply(text) {
+  const normalized = String(text || '')
+    .trim()
+    .replace(/\s+/gu, '')
+    .toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+  if (
+    /(還沒|尚未|未|沒有|無法|不能|不要).{0,8}(處理|完成)/u.test(
+      normalized,
+    )
+  ) {
+    return false;
+  }
+  return /^(?:已處理|處理完成|已完成|完成了|done|ok|okay)(?:[，。！!、；;：:～~]|謝謝)*$/iu.test(
+    normalized,
+  );
+}
+
 function hasIndividualMemberMention(mention) {
   return Boolean(
     mention?.mentionees?.some(
@@ -320,6 +340,25 @@ function createEventHandler({
       });
     }
 
+    const quotedMessageId = event.message.quotedMessageId || null;
+    if (
+      quotedMessageId &&
+      isCompletionReply(event.message.text) &&
+      typeof repository.completeHandoverBySourceMessageId === 'function'
+    ) {
+      const completedByName = await getDisplayName(client, event.source);
+      await repository.completeHandoverBySourceMessageId(
+        scope,
+        quotedMessageId,
+        {
+          completedAt: event.timestamp || now(),
+          completedByUserId: event.source.userId || null,
+          completedByName,
+        },
+      );
+      return acknowledgeSilently(event);
+    }
+
     let command = parseCommand(event.message.text);
     if (command.type === 'ignore') {
       const automaticCategory = getAutomaticRecordCategory(
@@ -432,4 +471,5 @@ module.exports = {
   createEventHandler,
   getDisplayName,
   getGroupName,
+  isCompletionReply,
 };

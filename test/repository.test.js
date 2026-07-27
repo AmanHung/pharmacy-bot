@@ -171,6 +171,73 @@ test('搜尋會忽略大小寫、空白及標點差異', async () => {
   assert.equal(records.length, 1);
 });
 
+test('可依原始訊息 ID 將交班標記為已處理', async () => {
+  let savedUpdates;
+  const record = {
+    shortId: 'H-000001',
+    category: 'handover',
+    content: '確認冷藏藥品',
+    sourceMessageId: 'message-handover-1',
+    status: 'open',
+    createdAt: 1000,
+  };
+  const recordsQuery = {
+    orderByChild(field) {
+      assert.equal(field, 'sourceMessageId');
+      return recordsQuery;
+    },
+    equalTo(messageId) {
+      assert.equal(messageId, 'message-handover-1');
+      return recordsQuery;
+    },
+    async once() {
+      return {
+        forEach(callback) {
+          callback({
+            key: 'record-key',
+            val() {
+              return record;
+            },
+          });
+        },
+      };
+    },
+    child(key) {
+      assert.equal(key, 'record-key');
+      return {
+        async update(updates) {
+          savedUpdates = updates;
+        },
+      };
+    },
+  };
+  const repository = createRecordRepository({
+    ref() {
+      return recordsQuery;
+    },
+  });
+
+  const completed = await repository.completeHandoverBySourceMessageId(
+    { type: 'group', id: 'G1' },
+    'message-handover-1',
+    {
+      completedAt: 2000,
+      completedByUserId: 'U1',
+      completedByName: '王藥師',
+    },
+  );
+
+  assert.deepEqual(savedUpdates, {
+    status: 'completed',
+    completedAt: 2000,
+    completedByUserId: 'U1',
+    completedByName: '王藥師',
+    updatedAt: 2000,
+  });
+  assert.equal(completed.status, 'completed');
+  assert.equal(completed.completedByName, '王藥師');
+});
+
 test('查詢會排除已到期公告', async () => {
   const repository = createRecordRepository(
     createDatabase([

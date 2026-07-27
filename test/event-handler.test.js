@@ -36,6 +36,9 @@ function createFixtures(repositoryOverrides = {}, handlerOptions = {}) {
     async completeRecord() {
       return null;
     },
+    async completeHandoverBySourceMessageId() {
+      return null;
+    },
     async getRecordByShortId() {
       return null;
     },
@@ -85,6 +88,66 @@ test('一般群組聊天不儲存也不回覆', async () => {
 
   assert.equal(saveCount, 0);
   assert.equal(replies.length, 0);
+});
+
+test('回覆原交班並輸入完成關鍵字會靜默標記已處理', async () => {
+  let completion;
+  const { handler, replies } = createFixtures({
+    async completeHandoverBySourceMessageId(scope, messageId, details) {
+      completion = { scope, messageId, details };
+      return {
+        shortId: 'H-000001',
+        category: 'handover',
+        status: 'completed',
+      };
+    },
+  });
+  const event = textEvent('已處理，謝謝');
+  event.message.quotedMessageId = 'handover-message-1';
+
+  await handler(event);
+
+  assert.deepEqual(completion, {
+    scope: { type: 'group', id: 'G1' },
+    messageId: 'handover-message-1',
+    details: {
+      completedAt: 1721779200000,
+      completedByUserId: 'U1',
+      completedByName: '王藥師',
+    },
+  });
+  assert.equal(replies.length, 0);
+});
+
+test('一般討論回覆不會誤標交班完成', async () => {
+  let completeCount = 0;
+  const { handler, replies } = createFixtures({
+    async completeHandoverBySourceMessageId() {
+      completeCount += 1;
+    },
+  });
+  const event = textEvent('請問這個要怎麼處理？');
+  event.message.quotedMessageId = 'handover-message-1';
+
+  await handler(event);
+
+  assert.equal(completeCount, 0);
+  assert.equal(replies.length, 0);
+});
+
+test('否定完成狀態的回覆不會誤標交班完成', async () => {
+  let completeCount = 0;
+  const { handler } = createFixtures({
+    async completeHandoverBySourceMessageId() {
+      completeCount += 1;
+    },
+  });
+  const event = textEvent('還沒處理完成');
+  event.message.quotedMessageId = 'handover-message-1';
+
+  await handler(event);
+
+  assert.equal(completeCount, 0);
 });
 
 test('加入群組時回覆簡短功能介紹', async () => {

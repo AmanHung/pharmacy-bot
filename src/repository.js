@@ -218,6 +218,52 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
     };
   }
 
+  async function completeHandoverBySourceMessageId(
+    scope,
+    sourceMessageId,
+    completion,
+  ) {
+    if (!sourceMessageId) {
+      return null;
+    }
+
+    const snapshot = await recordsRef(scope)
+      .orderByChild('sourceMessageId')
+      .equalTo(sourceMessageId)
+      .once('value');
+    let match = null;
+    snapshot.forEach((childSnapshot) => {
+      const record = childSnapshot.val();
+      if (
+        !match &&
+        record.category === 'handover' &&
+        record.status === 'open'
+      ) {
+        match = {
+          key: childSnapshot.key,
+          record,
+        };
+      }
+    });
+    if (!match) {
+      return null;
+    }
+
+    const updates = {
+      status: 'completed',
+      completedAt: completion.completedAt,
+      completedByUserId: completion.completedByUserId,
+      completedByName: completion.completedByName,
+      updatedAt: completion.completedAt,
+    };
+    await recordsRef(scope).child(match.key).update(updates);
+
+    return {
+      ...match.record,
+      ...updates,
+    };
+  }
+
   async function restoreRecord(scope, shortId, restoration) {
     const snapshot = await recordsRef(scope).once('value');
     const matches = [];
@@ -302,6 +348,7 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
   }
 
   return {
+    completeHandoverBySourceMessageId,
     completeRecord,
     getMessageReference,
     getRecordByShortId,
