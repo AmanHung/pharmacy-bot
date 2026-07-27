@@ -56,6 +56,11 @@ test('解析完成與說明指令', () => {
   assert.deepEqual(parseCommand('/help'), { type: 'help' });
 });
 
+test('解析可重送釘選說明的介紹指令', () => {
+  assert.deepEqual(parseCommand('/介紹'), { type: 'intro' });
+  assert.deepEqual(parseCommand('/welcome'), { type: 'intro' });
+});
+
 test('無效指令會回傳原因', () => {
   assert.deepEqual(parseCommand('/'), {
     type: 'invalid',

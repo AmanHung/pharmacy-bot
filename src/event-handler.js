@@ -335,6 +335,9 @@ function createEventHandler({
     if (command.type === 'help') {
       return reply(event, createFunctionMenuMessage(liffId));
     }
+    if (command.type === 'intro') {
+      return reply(event, createJoinMessage(liffId));
+    }
 
     if (command.type === 'add') {
       if (!command.content) {

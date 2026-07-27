@@ -26,6 +26,8 @@ const COMMAND_ALIASES = new Map([
   ['完成', 'complete'],
   ['help', 'help'],
   ['說明', 'help'],
+  ['welcome', 'intro'],
+  ['介紹', 'intro'],
 ]);
 
 function normalizeCommandText(text) {
@@ -61,6 +63,9 @@ function parseCommand(text) {
 
   if (command === 'help') {
     return { type: 'help' };
+  }
+  if (command === 'intro') {
+    return { type: 'intro' };
   }
 
   if (command === 'add') {

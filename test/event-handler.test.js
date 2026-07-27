@@ -167,6 +167,19 @@ test('/help 會回覆功能選單', async () => {
   assert.match(replies[0].messages[0].altText, /功能選單/);
 });
 
+test('/介紹 會重送可釘選的資訊中心說明', async () => {
+  const { handler, replies } = createFixtures(
+    {},
+    { liffId: '123456-test' },
+  );
+
+  await handler(textEvent('/介紹'));
+
+  assert.equal(replies.length, 1);
+  assert.match(replies[0].messages[0].text, /私人資訊中心/);
+  assert.match(replies[0].messages[0].text, /設為公告/);
+});
+
 test('新增指令會保存分類資料並以已讀取代成功回覆', async () => {
   let saved;
   const { handler, readReceipts, replies } = createFixtures({
