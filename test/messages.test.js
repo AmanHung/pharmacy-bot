@@ -71,14 +71,14 @@ test('缺換藥與公告顯示刪除按鈕，交班顯示已處理按鈕', () =>
   assert.doesNotMatch(serialized, /"type":"button"/);
 });
 
-test('功能選單可預填新增指令並直接執行查詢', () => {
+test('功能選單保留新增入口但不提供群組查詢按鈕', () => {
   const serialized = JSON.stringify(FUNCTION_MENU_MESSAGE);
 
   assert.match(serialized, /"inputOption":"openKeyboard"/);
   assert.match(serialized, /"fillInText":"\/m "/);
   assert.match(serialized, /"fillInText":"\/e "/);
-  assert.match(serialized, /action=query/);
-  assert.match(serialized, /category=education/);
+  assert.doesNotMatch(serialized, /action=query/);
+  assert.doesNotMatch(serialized, /查詢所有/);
   assert.match(serialized, /對圖片使用/);
   assert.doesNotMatch(serialized, /所有未完成事項/);
   assert.equal(FUNCTION_MENU_MESSAGE.type, 'flex');

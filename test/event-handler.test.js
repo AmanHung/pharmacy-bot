@@ -133,7 +133,10 @@ test('加入群組時提供可釘選的私人資訊中心說明', async () => {
   const text = replies[0].messages[0].text;
   assert.match(text, /私人資訊中心/);
   assert.match(text, /https:\/\/liff\.line\.me\/123456-test/);
-  assert.match(text, /設為公告/);
+  assert.match(text, /自動記錄/);
+  assert.match(text, /每日 08:00/);
+  assert.doesNotMatch(text, /設為公告/);
+  assert.doesNotMatch(text, /輸入 \/help/);
   assert.match(text, /只有目前仍在本群組的成員可以查看/);
 });
 
@@ -177,7 +180,8 @@ test('/介紹 會重送可釘選的資訊中心說明', async () => {
 
   assert.equal(replies.length, 1);
   assert.match(replies[0].messages[0].text, /私人資訊中心/);
-  assert.match(replies[0].messages[0].text, /設為公告/);
+  assert.match(replies[0].messages[0].text, /自動記錄/);
+  assert.doesNotMatch(replies[0].messages[0].text, /設為公告/);
 });
 
 test('新增指令會保存分類資料並以已讀取代成功回覆', async () => {

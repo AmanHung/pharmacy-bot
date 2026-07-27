@@ -25,23 +25,36 @@ function createJoinMessage(liffId) {
   const lines = [
     '大家好，我是藥劑科資訊小幫手。',
     '可協助整理交班、缺換藥、公告與教育訓練資訊。',
+    '',
+    '【自動記錄】',
+    '訊息包含「交班」會記錄為交班資訊。',
+    '訊息包含「缺藥」或「換藥」會記錄為缺換藥資訊。',
+    '訊息包含「公告」會記錄為公告資訊。',
+    '訊息包含「上課」或「課程」會記錄為教育訓練資訊。',
+    '也可使用 /h、/m、/n、/e 加上內容，明確指定分類。',
+    '記錄成功時機器人不另外回覆，以減少群組訊息。',
   ];
 
   if (liffId) {
     lines.push(
       '',
       '【私人資訊中心】',
-      '可私下查詢群組已記錄的資訊，不會在群組產生查詢訊息。',
+      '可搜尋及分類查看群組已記錄的資訊，不會在群組產生查詢訊息。',
       `https://liff.line.me/${encodeURIComponent(liffId)}`,
       '首次開啟需以 LINE 授權，且只有目前仍在本群組的成員可以查看。',
-      '',
-      '請管理員將這則訊息設為公告，方便同仁隨時開啟資訊中心。',
     );
   }
 
   lines.push(
     '',
-    '輸入 /help，可開啟完整功能選單。',
+    '【圖片、連結與處理】',
+    '圖片資訊：先傳送圖片，再回覆該圖片輸入分類內容；原圖可在資訊中心查看 3 個月。',
+    '訊息包含網址時，資訊中心會提供可直接開啟的連結。',
+    '交班可在資訊中心點「已處理」；缺換藥、公告及上課資訊可點「刪除」。',
+    '',
+    '【每日提醒】',
+    '每日 08:00 會推播未處理交班摘要及當天課程提醒。',
+    '',
     '一般聊天不會被記錄，請安心使用。',
   );
   return lines.join('\n');
@@ -152,7 +165,7 @@ const FUNCTION_MENU_MESSAGE = {
         },
         {
           type: 'text',
-          text: '手機可點選輸入；桌面版請照指令輸入',
+          text: '新增可點選輸入；查詢請使用私人資訊中心',
           size: 'xs',
           color: '#777777',
           margin: 'sm',
@@ -199,61 +212,10 @@ const FUNCTION_MENU_MESSAGE = {
           ],
         },
         {
-          type: 'separator',
-          margin: 'md',
-        },
-        {
-          type: 'text',
-          text: '查詢資訊',
-          size: 'xs',
-          color: '#777777',
-          weight: 'bold',
-          margin: 'md',
-        },
-        {
-          type: 'box',
-          layout: 'vertical',
-          spacing: 'xs',
-          contents: [
-            createMenuRow('最近 7 天交班', '查詢', {
-              type: 'postback',
-              label: '查詢最近 7 天交班',
-              data: buildQueryPostback({
-                mode: 'query',
-                category: 'handover',
-              }),
-            }),
-            createMenuRow('所有缺換藥', '查詢', {
-              type: 'postback',
-              label: '查詢所有缺換藥',
-              data: buildQueryPostback({
-                mode: 'query',
-                category: 'medication',
-              }),
-            }),
-            createMenuRow('所有公告', '查詢', {
-              type: 'postback',
-              label: '查詢所有公告',
-              data: buildQueryPostback({
-                mode: 'query',
-                category: 'notice',
-              }),
-            }),
-            createMenuRow('所有教育訓練', '查詢', {
-              type: 'postback',
-              label: '查詢所有教育訓練',
-              data: buildQueryPostback({
-                mode: 'query',
-                category: 'education',
-              }),
-            }),
-          ],
-        },
-        {
           type: 'text',
           text: [
             '圖片公告：對圖片使用「回覆」，再輸入 /n 公告內容。',
-            '也可直接輸入 /help 或 /說明再次開啟本選單。',
+            '查詢資訊請開啟私人資訊中心。',
           ].join('\n'),
           size: 'xs',
           color: '#777777',
