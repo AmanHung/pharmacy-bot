@@ -12,6 +12,16 @@ function getBearerToken(request) {
   return match ? match[1].trim() : null;
 }
 
+function getRequestedGroupId(request, defaultGroupId = null) {
+  const headerGroupId = request.get('x-line-group-id');
+  const queryGroupId = request.query?.groupId;
+  const requestedGroupId =
+    (typeof headerGroupId === 'string' && headerGroupId.trim()) ||
+    (typeof queryGroupId === 'string' && queryGroupId.trim()) ||
+    defaultGroupId;
+  return requestedGroupId || null;
+}
+
 async function verifyLineIdToken(idToken, channelId, fetchImpl = fetch) {
   if (!idToken || !channelId) {
     throw new LiffAccessError('LIFF authentication is not configured.');
@@ -46,13 +56,26 @@ async function verifyLineIdToken(idToken, channelId, fetchImpl = fetch) {
 
 function createLiffAuthorizer({
   channelId,
-  groupId,
+  groupId = null,
+  allowedGroupIds = new Set(),
   messagingClient,
   fetchImpl = fetch,
 }) {
   return async function authorizeLiffRequest(request) {
-    if (!channelId || !groupId) {
+    const requestedGroupId = getRequestedGroupId(request, groupId);
+    const configuredGroupIds = new Set(allowedGroupIds);
+    if (groupId) {
+      configuredGroupIds.add(groupId);
+    }
+
+    if (!channelId || !requestedGroupId) {
       throw new LiffAccessError('LIFF is not configured.', 503);
+    }
+    if (
+      configuredGroupIds.size > 0 &&
+      !configuredGroupIds.has(requestedGroupId)
+    ) {
+      throw new LiffAccessError('此群組尚未開放資訊中心。', 403);
     }
 
     const identity = await verifyLineIdToken(
@@ -63,13 +86,13 @@ function createLiffAuthorizer({
 
     try {
       const memberProfile = await messagingClient.getGroupMemberProfile(
-        groupId,
+        requestedGroupId,
         identity.userId,
       );
       return {
         ...identity,
         displayName: memberProfile.displayName || identity.displayName,
-        groupId,
+        groupId: requestedGroupId,
       };
     } catch {
       throw new LiffAccessError(
@@ -84,5 +107,6 @@ module.exports = {
   LiffAccessError,
   createLiffAuthorizer,
   getBearerToken,
+  getRequestedGroupId,
   verifyLineIdToken,
 };

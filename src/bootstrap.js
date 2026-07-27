@@ -44,11 +44,11 @@ function createApplication() {
           authorize: createLiffAuthorizer({
             channelId: config.liffChannelId,
             groupId: config.liffGroupId,
+            allowedGroupIds: config.allowedGroupIds,
             messagingClient: client,
           }),
           repository,
           imageStorage,
-          groupId: config.liffGroupId,
         })
       : null;
 

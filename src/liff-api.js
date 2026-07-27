@@ -35,10 +35,12 @@ function createLiffRouter({
   authorize,
   repository,
   imageStorage,
-  groupId,
 }) {
   const router = express.Router();
-  const scope = { type: 'group', id: groupId };
+
+  function getScope(request) {
+    return { type: 'group', id: request.liffMember.groupId };
+  }
 
   router.use(async (request, response, next) => {
     try {
@@ -51,6 +53,7 @@ function createLiffRouter({
 
   router.get('/records', async (request, response, next) => {
     try {
+      const scope = getScope(request);
       const currentTime = Date.now();
       if (typeof repository.removeExpiredEducationRecords === 'function') {
         await repository.removeExpiredEducationRecords(scope, currentTime);
@@ -71,6 +74,7 @@ function createLiffRouter({
 
   router.get('/history', async (request, response, next) => {
     try {
+      const scope = getScope(request);
       const currentTime = Date.now();
       const cutoff = currentTime - HISTORY_RETENTION_MS;
       if (typeof repository.removeCompletedRecordsBefore === 'function') {
@@ -93,6 +97,7 @@ function createLiffRouter({
 
   router.post('/records/:shortId/complete', async (request, response, next) => {
     try {
+      const scope = getScope(request);
       const completedAt = Date.now();
       const record = await repository.completeRecord(
         scope,
@@ -119,6 +124,7 @@ function createLiffRouter({
 
   router.post('/records/:shortId/restore', async (request, response, next) => {
     try {
+      const scope = getScope(request);
       const restoredAt = Date.now();
       const record = await repository.restoreRecord(
         scope,
@@ -145,6 +151,7 @@ function createLiffRouter({
 
   router.get('/images/:shortId', async (request, response, next) => {
     try {
+      const scope = getScope(request);
       if (!imageStorage) {
         response.status(503).json({ error: '圖片儲存尚未完成設定。' });
         return;

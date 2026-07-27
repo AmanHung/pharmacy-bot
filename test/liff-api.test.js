@@ -46,6 +46,7 @@ test('已驗證群組成員可以讀取紀錄及圖片', async (context) => {
     authorize: async () => ({
       userId: 'U1',
       displayName: '王藥師',
+      groupId: 'G1',
     }),
     repository: {
       async removeExpiredEducationRecords() {},
@@ -103,6 +104,7 @@ test('LIFF 已處理操作會記錄操作者身分', async (context) => {
     authorize: async () => ({
       userId: 'U1',
       displayName: '王藥師',
+      groupId: 'G1',
     }),
     repository: {
       async completeRecord(scope, shortId, details) {
@@ -133,6 +135,7 @@ test('LIFF 最近處理區顯示操作者並可恢復紀錄', async (context) =>
     authorize: async () => ({
       userId: 'U1',
       displayName: '王藥師',
+      groupId: 'G1',
     }),
     repository: {
       async removeCompletedRecordsBefore() {

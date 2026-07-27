@@ -152,7 +152,8 @@ function createLiffPage(liffId) {
       history: [],
       category: 'all',
       keyword: '',
-      idToken: ''
+      idToken: '',
+      groupId: ''
     };
     const recordsNode = document.getElementById('records');
     const statusNode = document.getElementById('status');
@@ -184,7 +185,10 @@ function createLiffPage(liffId) {
         ...options,
         headers: {
           ...(options.headers || {}),
-          authorization: 'Bearer ' + state.idToken
+          authorization: 'Bearer ' + state.idToken,
+          ...(state.groupId
+            ? { 'x-line-group-id': state.groupId }
+            : {})
         }
       });
       if (!response.ok) {
@@ -396,8 +400,20 @@ function createLiffPage(liffId) {
         return;
       }
       await liff.init({ liffId: config.liffId });
+      const requestedGroupId =
+        new URLSearchParams(window.location.search).get('groupId');
+      if (requestedGroupId) {
+        window.sessionStorage.setItem(
+          'pharmacyLiffGroupId',
+          requestedGroupId
+        );
+      }
+      state.groupId =
+        requestedGroupId ||
+        window.sessionStorage.getItem('pharmacyLiffGroupId') ||
+        '';
       if (!liff.isLoggedIn()) {
-        liff.login();
+        liff.login({ redirectUri: window.location.href });
         return;
       }
       state.idToken = liff.getIDToken();

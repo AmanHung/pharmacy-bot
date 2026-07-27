@@ -184,7 +184,7 @@ test('/介紹 會重送可釘選的資訊中心說明', async () => {
   assert.doesNotMatch(replies[0].messages[0].text, /設為公告/);
 });
 
-test('新增指令會保存分類資料並以已讀取代成功回覆', async () => {
+test('新增指令會保存分類資料且不產生群組回覆', async () => {
   let saved;
   const { handler, readReceipts, replies } = createFixtures({
     async saveRecord(scope, eventKey, record) {
@@ -202,9 +202,7 @@ test('新增指令會保存分類資料並以已讀取代成功回覆', async ()
   assert.equal(saved.record.status, 'open');
   assert.match(saved.record.shortId, /^M-[A-Z0-9]{6}$/);
   assert.equal(replies.length, 0);
-  assert.deepEqual(readReceipts, [
-    { markAsReadToken: 'mark-as-read-token' },
-  ]);
+  assert.deepEqual(readReceipts, []);
 });
 
 test('公告可設定截止日期且成功時不回覆', async () => {
@@ -221,7 +219,7 @@ test('公告可設定截止日期且成功時不回覆', async () => {
   assert.equal(saved.content, '盤點提醒');
   assert.equal(saved.expiresAt, Date.UTC(2024, 6, 31, 15, 59, 59, 999));
   assert.equal(replies.length, 0);
-  assert.equal(readReceipts.length, 1);
+  assert.equal(readReceipts.length, 0);
 });
 
 test('回覆圖片新增公告時會保存原圖引用資訊', async () => {
@@ -376,7 +374,7 @@ test('replied native notes without a captured reference can be saved as a tag', 
   assert.equal(savedRecord.content, '上課公告');
   assert.equal(savedRecord.sourceReferenceMessageId, undefined);
   assert.equal(replies.length, 0);
-  assert.equal(readReceipts.length, 1);
+  assert.equal(readReceipts.length, 0);
 });
 
 test('重複事件不再次回覆', async () => {
@@ -490,7 +488,7 @@ test('交班查詢保留登錄者姓名', async () => {
   assert.match(JSON.stringify(replies[0].messages[0]), /王藥師/);
 });
 
-test('完成指令會更新指定事項並以已讀取代成功回覆', async () => {
+test('完成指令會更新指定事項且不產生群組回覆', async () => {
   let completion;
   const { handler, readReceipts, replies } = createFixtures({
     async completeRecord(scope, shortId, details) {
@@ -511,7 +509,7 @@ test('完成指令會更新指定事項並以已讀取代成功回覆', async ()
   assert.equal(completion.details.completedByName, '王藥師');
   assert.equal(completion.details.completedByUserId, 'U1');
   assert.equal(replies.length, 0);
-  assert.equal(readReceipts.length, 1);
+  assert.equal(readReceipts.length, 0);
 });
 
 test('點擊查詢結果按鈕會以內容說明已處理事項', async () => {
@@ -668,7 +666,7 @@ test('messages containing medication keywords are recorded silently', async () =
   assert.equal(savedRecord.category, 'medication');
   assert.equal(savedRecord.content, '缺藥：Cefazolin 目前無庫存');
   assert.equal(replies.length, 0);
-  assert.equal(readReceipts.length, 1);
+  assert.equal(readReceipts.length, 0);
 });
 
 test('鎖檔與開檔關鍵字會自動記錄為缺換藥', async () => {

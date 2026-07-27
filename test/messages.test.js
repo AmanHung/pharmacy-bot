@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const {
   FUNCTION_MENU_MESSAGE,
   createFunctionMenuMessage,
+  createJoinMessage,
   formatAge,
   formatCompletedRecord,
   formatQueryResult,
@@ -85,10 +86,17 @@ test('功能選單保留新增入口但不提供群組查詢按鈕', () => {
 });
 
 test('設定 LIFF 後功能選單提供私人資訊中心入口', () => {
-  const menu = createFunctionMenuMessage('123456-test');
+  const menu = createFunctionMenuMessage('123456-test', 'G1');
   const serialized = JSON.stringify(menu);
   assert.match(serialized, /私人資訊中心/);
-  assert.match(serialized, /https:\/\/liff\.line\.me\/123456-test/);
+  assert.match(
+    serialized,
+    /https:\/\/liff\.line\.me\/123456-test\?groupId=G1/,
+  );
+  assert.match(
+    createJoinMessage('123456-test', 'G1'),
+    /https:\/\/liff\.line\.me\/123456-test\?groupId=G1/,
+  );
 });
 
 test('公告包含網址時提供可直接開啟的連結按鈕', () => {

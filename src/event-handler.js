@@ -120,20 +120,7 @@ function createEventHandler({
   }
 
   async function acknowledgeSilently(event) {
-    const markAsReadToken = event.message?.markAsReadToken;
-    if (
-      !markAsReadToken ||
-      typeof client.markMessagesAsReadByToken !== 'function'
-    ) {
-      return null;
-    }
-
-    try {
-      return await client.markMessagesAsReadByToken({ markAsReadToken });
-    } catch (error) {
-      console.warn('Unable to mark LINE message as read:', error.message);
-      return null;
-    }
+    return null;
   }
 
   function canComplete(event) {
@@ -230,7 +217,7 @@ function createEventHandler({
         groupName,
         registeredAt,
       });
-      return reply(event, createJoinMessage(liffId));
+      return reply(event, createJoinMessage(liffId, scope.id));
     }
 
     if (event.type === 'unsend' && event.unsend?.messageId) {
@@ -333,10 +320,10 @@ function createEventHandler({
     }
 
     if (command.type === 'help') {
-      return reply(event, createFunctionMenuMessage(liffId));
+      return reply(event, createFunctionMenuMessage(liffId, scope.id));
     }
     if (command.type === 'intro') {
-      return reply(event, createJoinMessage(liffId));
+      return reply(event, createJoinMessage(liffId, scope.id));
     }
 
     if (command.type === 'add') {

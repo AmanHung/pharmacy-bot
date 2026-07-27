@@ -21,7 +21,14 @@ const JOIN_MESSAGE = [
   '一般聊天不會被記錄，請安心使用。',
 ].join('\n');
 
-function createJoinMessage(liffId) {
+function createLiffUrl(liffId, groupId = null) {
+  const url = `https://liff.line.me/${encodeURIComponent(liffId)}`;
+  return groupId
+    ? `${url}?groupId=${encodeURIComponent(groupId)}`
+    : url;
+}
+
+function createJoinMessage(liffId, groupId = null) {
   const lines = [
     '大家好，我是藥劑科資訊小幫手。',
     '可協助整理交班、缺換藥、公告與教育訓練資訊。',
@@ -40,7 +47,7 @@ function createJoinMessage(liffId) {
       '',
       '【私人資訊中心】',
       '可搜尋及分類查看群組已記錄的資訊，不會在群組產生查詢訊息。',
-      `https://liff.line.me/${encodeURIComponent(liffId)}`,
+      createLiffUrl(liffId, groupId),
       '首次開啟需以 LINE 授權，且只有目前仍在本群組的成員可以查看。',
     );
   }
@@ -228,7 +235,7 @@ const FUNCTION_MENU_MESSAGE = {
   },
 };
 
-function createFunctionMenuMessage(liffId) {
+function createFunctionMenuMessage(liffId, groupId = null) {
   if (!liffId) {
     return FUNCTION_MENU_MESSAGE;
   }
@@ -238,7 +245,7 @@ function createFunctionMenuMessage(liffId) {
     createMenuRow('私人資訊中心', '開啟', {
       type: 'uri',
       label: '開啟私人資訊中心',
-      uri: `https://liff.line.me/${encodeURIComponent(liffId)}`,
+      uri: createLiffUrl(liffId, groupId),
     }),
     {
       type: 'separator',
@@ -593,6 +600,7 @@ module.exports = {
   QUERY_PAGE_SIZE,
   createFunctionMenuMessage,
   createJoinMessage,
+  createLiffUrl,
   formatAge,
   formatCompletedRecord,
   formatInvalidCommand,
