@@ -671,6 +671,34 @@ test('messages containing medication keywords are recorded silently', async () =
   assert.equal(readReceipts.length, 1);
 });
 
+test('鎖檔與開檔關鍵字會自動記錄為缺換藥', async () => {
+  const saved = [];
+  const { handler } = createFixtures({
+    async saveRecord(_scope, _eventKey, record) {
+      saved.push(record);
+      return { record, duplicate: false };
+    },
+  });
+
+  await handler(textEvent('Metformin 今日鎖檔'));
+  await handler(
+    textEvent('Metformin 已恢復開檔', {
+      webhookEventId: '01EVENTABC124',
+      message: {
+        ...textEvent('').message,
+        id: 'message-2',
+        text: 'Metformin 已恢復開檔',
+      },
+    }),
+  );
+
+  assert.equal(saved.length, 2);
+  assert.deepEqual(
+    saved.map((record) => record.category),
+    ['medication', 'medication'],
+  );
+});
+
 test('negative medication statements are not recorded automatically', async () => {
   let saveCount = 0;
   const { handler } = createFixtures({

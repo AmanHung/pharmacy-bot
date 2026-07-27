@@ -128,6 +128,22 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
       .slice(0, filters.limit || 10);
   }
 
+  async function listCompletedRecords(scope, filters = {}) {
+    const snapshot = await recordsRef(scope).once('value');
+    return snapshotValues(snapshot)
+      .filter((record) => record.status === 'completed')
+      .filter(
+        (record) =>
+          filters.completedSince === undefined ||
+          record.completedAt >= filters.completedSince,
+      )
+      .sort(
+        (left, right) =>
+          (right.completedAt || 0) - (left.completedAt || 0),
+      )
+      .slice(0, filters.limit || 100);
+  }
+
   async function findRecordByShortId(scope, shortId) {
     const snapshot = await recordsRef(scope)
       .orderByChild('createdAt')
@@ -192,6 +208,61 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
     };
   }
 
+  async function restoreRecord(scope, shortId, restoration) {
+    const snapshot = await recordsRef(scope).once('value');
+    const matches = [];
+    snapshot.forEach((childSnapshot) => {
+      const record = childSnapshot.val();
+      if (record.shortId === shortId && record.status === 'completed') {
+        matches.push({ key: childSnapshot.key, record });
+      }
+    });
+    matches.sort(
+      (left, right) =>
+        (right.record.completedAt || 0) -
+        (left.record.completedAt || 0),
+    );
+    const match = matches[0];
+    if (!match) {
+      return null;
+    }
+
+    const updates = {
+      status: 'open',
+      completedAt: null,
+      completedByUserId: null,
+      completedByName: null,
+      restoredAt: restoration.restoredAt,
+      restoredByUserId: restoration.restoredByUserId,
+      restoredByName: restoration.restoredByName,
+      updatedAt: restoration.restoredAt,
+    };
+    await recordsRef(scope).child(match.key).update(updates);
+    return {
+      ...match.record,
+      ...updates,
+    };
+  }
+
+  async function removeCompletedRecordsBefore(scope, cutoff) {
+    const snapshot = await recordsRef(scope).once('value');
+    const updates = {};
+    snapshot.forEach((childSnapshot) => {
+      const record = childSnapshot.val();
+      if (
+        record.status === 'completed' &&
+        record.completedAt &&
+        record.completedAt < cutoff
+      ) {
+        updates[childSnapshot.key] = null;
+      }
+    });
+    if (Object.keys(updates).length > 0) {
+      await recordsRef(scope).update(updates);
+    }
+    return Object.keys(updates).length;
+  }
+
   async function withdrawRecordByMessageId(scope, messageId, withdrawnAt) {
     const snapshot = await recordsRef(scope)
       .orderByChild('sourceMessageId')
@@ -215,11 +286,14 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
     completeRecord,
     getMessageReference,
     getRecordByShortId,
+    listCompletedRecords,
     listRecords,
+    removeCompletedRecordsBefore,
     removeExpiredEducationRecords,
     registerScope,
     saveMessageReference,
     saveRecord,
+    restoreRecord,
     withdrawRecordByMessageId,
   };
 }

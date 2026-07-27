@@ -139,6 +139,7 @@ test('有效排程密鑰會觸發每日交班摘要', async (context) => {
     date: '2026-07-24',
     recordCount: 2,
     removedImages: 0,
+    removedHistory: 0,
   });
   assert.equal(sendCount, 1);
 });
@@ -168,6 +169,8 @@ test('LIFF 資訊中心頁面可載入且未設定 API 時安全拒絕', async (
   const page = await pageResponse.text();
   assert.equal(pageResponse.status, 200);
   assert.match(page, /藥劑科資訊中心/);
+  assert.match(page, /最近處理/);
+  assert.match(page, /restoreRecord/);
   assert.equal(
     pageResponse.headers.get('cache-control'),
     'private, no-store, max-age=0',

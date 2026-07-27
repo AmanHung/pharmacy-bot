@@ -310,6 +310,105 @@ test('相同短編號存在多筆時優先完成最新的未完成紀錄', async
   assert.equal(records.completed.createdAt, 1000);
 });
 
+test('最近處理紀錄依處理時間排序並排除一個月以前資料', async () => {
+  const repository = createRecordRepository(
+    createDatabase([
+      {
+        shortId: 'H-OLD',
+        status: 'completed',
+        completedAt: 999,
+      },
+      {
+        shortId: 'H-NEW',
+        status: 'completed',
+        completedAt: 3000,
+      },
+      {
+        shortId: 'M-MIDDLE',
+        status: 'completed',
+        completedAt: 2000,
+      },
+      {
+        shortId: 'N-OPEN',
+        status: 'open',
+        createdAt: 4000,
+      },
+    ]),
+  );
+
+  const records = await repository.listCompletedRecords(
+    { type: 'group', id: 'G1' },
+    { completedSince: 1000 },
+  );
+
+  assert.deepEqual(
+    records.map((record) => record.shortId),
+    ['H-NEW', 'M-MIDDLE'],
+  );
+});
+
+test('最近處理紀錄可恢復並清除超過一個月的資料', async () => {
+  const records = {
+    recent: {
+      shortId: 'H-RECENT',
+      status: 'completed',
+      completedAt: 3000,
+    },
+    expired: {
+      shortId: 'N-EXPIRED',
+      status: 'completed',
+      completedAt: 500,
+    },
+  };
+  let removed;
+  const reference = {
+    async once() {
+      return {
+        forEach(callback) {
+          for (const [key, record] of Object.entries(records)) {
+            callback({ key, val: () => record });
+          }
+        },
+      };
+    },
+    child(key) {
+      return {
+        async update(updates) {
+          records[key] = { ...records[key], ...updates };
+        },
+      };
+    },
+    async update(updates) {
+      removed = updates;
+    },
+  };
+  const repository = createRecordRepository({
+    ref() {
+      return reference;
+    },
+  });
+
+  const restored = await repository.restoreRecord(
+    { type: 'group', id: 'G1' },
+    'H-RECENT',
+    {
+      restoredAt: 4000,
+      restoredByUserId: 'U1',
+      restoredByName: '王藥師',
+    },
+  );
+  const removedCount = await repository.removeCompletedRecordsBefore(
+    { type: 'group', id: 'G1' },
+    1000,
+  );
+
+  assert.equal(restored.status, 'open');
+  assert.equal(restored.completedAt, null);
+  assert.equal(records.recent.restoredByName, '王藥師');
+  assert.equal(removedCount, 1);
+  assert.deepEqual(removed, { expired: null });
+});
+
 test('expired education records are removed from the scope', async () => {
   let removedRecords;
   const snapshot = {

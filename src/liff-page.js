@@ -80,6 +80,7 @@ function createLiffPage(liffId) {
       border-radius: 14px;
       box-shadow: 0 3px 12px rgba(22, 64, 50, .05);
     }
+    .record.processed { background: #f1f3f2; border-color: #d4dbd8; }
     .meta {
       display: flex;
       gap: 7px;
@@ -94,6 +95,13 @@ function createLiffPage(liffId) {
     .link { color: #315f8a; background: #eaf2fa; text-decoration: none; }
     .complete { color: #246b3b; background: #e8f5e9; }
     .delete { color: var(--danger); background: #fdecec; }
+    .restore { color: #315f8a; background: #eaf2fa; }
+    .processed-note {
+      margin-top: 10px;
+      color: #53645e;
+      font-size: 13px;
+      font-weight: 700;
+    }
     .hidden { display: none; }
     dialog {
       width: min(92vw, 720px);
@@ -122,6 +130,7 @@ function createLiffPage(liffId) {
       <button class="tab" data-category="medication">缺換藥</button>
       <button class="tab" data-category="notice">公告</button>
       <button class="tab" data-category="education">上課</button>
+      <button class="tab" data-category="history">最近處理</button>
     </nav>
     <div id="status" class="status">載入中…</div>
     <section id="records"></section>
@@ -138,7 +147,13 @@ function createLiffPage(liffId) {
       notice: '公告',
       education: '上課'
     };
-    const state = { records: [], category: 'all', keyword: '', idToken: '' };
+    const state = {
+      records: [],
+      history: [],
+      category: 'all',
+      keyword: '',
+      idToken: ''
+    };
     const recordsNode = document.getElementById('records');
     const statusNode = document.getElementById('status');
     const identityNode = document.getElementById('identity');
@@ -181,9 +196,13 @@ function createLiffPage(liffId) {
 
     function filteredRecords() {
       const keyword = state.keyword.trim().toLowerCase();
-      return state.records.filter((record) => {
+      const source =
+        state.category === 'history' ? state.history : state.records;
+      return source.filter((record) => {
         const categoryMatches =
-          state.category === 'all' || record.category === state.category;
+          state.category === 'all' ||
+          state.category === 'history' ||
+          record.category === state.category;
         const keywordMatches =
           !keyword || record.content.toLowerCase().includes(keyword);
         return categoryMatches && keywordMatches;
@@ -199,6 +218,9 @@ function createLiffPage(liffId) {
       for (const record of visible) {
         const card = document.createElement('article');
         card.className = 'record';
+        if (record.status === 'completed') {
+          card.classList.add('processed');
+        }
         const meta = document.createElement('div');
         meta.className = 'meta';
         const category = document.createElement('span');
@@ -218,6 +240,19 @@ function createLiffPage(liffId) {
         const actions = document.createElement('div');
         actions.className = 'actions';
 
+        if (record.status === 'completed') {
+          const processed = document.createElement('div');
+          processed.className = 'processed-note';
+          const resultLabel =
+            record.category === 'handover' ? '已處理' : '已刪除';
+          processed.textContent =
+            resultLabel + '｜' + record.completedByName +
+            '｜' + formatDate(record.completedAt);
+          card.append(meta, content, processed);
+        } else {
+          card.append(meta, content);
+        }
+
         if (record.hasImage) {
           actions.append(
             button('查看原圖', 'image', () => openImage(record.shortId))
@@ -232,13 +267,25 @@ function createLiffPage(liffId) {
           link.rel = 'noopener noreferrer';
           actions.append(link);
         }
-        const actionLabel = record.category === 'handover' ? '已處理' : '刪除';
-        const actionClass = record.category === 'handover' ? 'complete' : 'delete';
-        actions.append(
-          button(actionLabel, actionClass, () => completeRecord(record.shortId))
-        );
+        if (record.status === 'completed') {
+          actions.append(
+            button('恢復', 'restore', () => restoreRecord(record.shortId))
+          );
+        } else {
+          const actionLabel =
+            record.category === 'handover' ? '已處理' : '刪除';
+          const actionClass =
+            record.category === 'handover' ? 'complete' : 'delete';
+          actions.append(
+            button(
+              actionLabel,
+              actionClass,
+              () => completeRecord(record.shortId)
+            )
+          );
+        }
 
-        card.append(meta, content, actions);
+        card.append(actions);
         recordsNode.append(card);
       }
     }
@@ -248,10 +295,18 @@ function createLiffPage(liffId) {
       statusNode.textContent = '載入中…';
       recordsNode.replaceChildren();
       try {
-        const response = await api('/api/liff/records');
-        const payload = await response.json();
-        state.records = payload.records || [];
-        identityNode.textContent = payload.displayName + '｜已驗證為群組成員';
+        const [recordsResponse, historyResponse] = await Promise.all([
+          api('/api/liff/records'),
+          api('/api/liff/history')
+        ]);
+        const [recordsPayload, historyPayload] = await Promise.all([
+          recordsResponse.json(),
+          historyResponse.json()
+        ]);
+        state.records = recordsPayload.records || [];
+        state.history = historyPayload.records || [];
+        identityNode.textContent =
+          recordsPayload.displayName + '｜已驗證為群組成員';
         render();
       } catch (error) {
         statusNode.textContent = error.message;
@@ -261,10 +316,43 @@ function createLiffPage(liffId) {
 
     async function completeRecord(shortId) {
       try {
-        await api('/api/liff/records/' + encodeURIComponent(shortId) + '/complete', {
+        const response = await api(
+          '/api/liff/records/' + encodeURIComponent(shortId) + '/complete', {
           method: 'POST'
         });
-        state.records = state.records.filter((record) => record.shortId !== shortId);
+        const payload = await response.json();
+        state.records = state.records.map((record) =>
+          record.shortId === shortId ? payload.record : record
+        );
+        state.history = [
+          payload.record,
+          ...state.history.filter((record) => record.shortId !== shortId)
+        ];
+        render();
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+
+    async function restoreRecord(shortId) {
+      try {
+        const response = await api(
+          '/api/liff/records/' + encodeURIComponent(shortId) + '/restore', {
+            method: 'POST'
+          }
+        );
+        const payload = await response.json();
+        const existing = state.records.some(
+          (record) => record.shortId === shortId
+        );
+        state.records = existing
+          ? state.records.map((record) =>
+              record.shortId === shortId ? payload.record : record
+            )
+          : [payload.record, ...state.records];
+        state.history = state.history.filter(
+          (record) => record.shortId !== shortId
+        );
         render();
       } catch (error) {
         alert(error.message);

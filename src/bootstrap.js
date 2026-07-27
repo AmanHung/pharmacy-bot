@@ -5,7 +5,10 @@ const { createDailySummarySender } = require('./daily-summary');
 const { createEventHandler } = require('./event-handler');
 const { createFirebaseDatabase } = require('./firebase');
 const { createImageStorage } = require('./image-storage');
-const { createLiffRouter } = require('./liff-api');
+const {
+  createLiffRouter,
+  HISTORY_RETENTION_MS,
+} = require('./liff-api');
 const { createLiffAuthorizer } = require('./liff-auth');
 const { createRecordRepository } = require('./repository');
 
@@ -55,6 +58,15 @@ function createApplication() {
     sendDailySummary,
     liffRouter,
     removeExpiredImages: imageStorage?.removeExpiredImages,
+    removeExpiredHistory:
+      config.liffGroupId &&
+      typeof repository.removeCompletedRecordsBefore === 'function'
+        ? () =>
+            repository.removeCompletedRecordsBefore(
+              { type: 'group', id: config.liffGroupId },
+              Date.now() - HISTORY_RETENTION_MS,
+            )
+        : null,
   });
 }
 

@@ -2,6 +2,7 @@ const express = require('express');
 const { LiffAccessError } = require('./liff-auth');
 
 const LIFF_RECORD_LIMIT = 100;
+const HISTORY_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
 function serializeRecord(record, currentTime = Date.now()) {
   return {
@@ -18,6 +19,15 @@ function serializeRecord(record, currentTime = Date.now()) {
         record.sourceImageExpiresAt > currentTime,
     ),
     sourceUrl: record.sourceUrl || null,
+  };
+}
+
+function serializeHistoryRecord(record, currentTime = Date.now()) {
+  return {
+    ...serializeRecord(record, currentTime),
+    status: 'completed',
+    completedAt: record.completedAt,
+    completedByName: record.completedByName || '群組成員',
   };
 }
 
@@ -59,6 +69,28 @@ function createLiffRouter({
     }
   });
 
+  router.get('/history', async (request, response, next) => {
+    try {
+      const currentTime = Date.now();
+      const cutoff = currentTime - HISTORY_RETENTION_MS;
+      if (typeof repository.removeCompletedRecordsBefore === 'function') {
+        await repository.removeCompletedRecordsBefore(scope, cutoff);
+      }
+      const records = await repository.listCompletedRecords(scope, {
+        completedSince: cutoff,
+        limit: LIFF_RECORD_LIMIT,
+      });
+      response.set('cache-control', 'private, no-store, max-age=0');
+      response.json({
+        records: records.map((record) =>
+          serializeHistoryRecord(record, currentTime),
+        ),
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.post('/records/:shortId/complete', async (request, response, next) => {
     try {
       const completedAt = Date.now();
@@ -76,7 +108,36 @@ function createLiffRouter({
         return;
       }
       response.set('cache-control', 'private, no-store, max-age=0');
-      response.json({ ok: true });
+      response.json({
+        ok: true,
+        record: serializeHistoryRecord(record, completedAt),
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post('/records/:shortId/restore', async (request, response, next) => {
+    try {
+      const restoredAt = Date.now();
+      const record = await repository.restoreRecord(
+        scope,
+        request.params.shortId,
+        {
+          restoredAt,
+          restoredByUserId: request.liffMember.userId,
+          restoredByName: request.liffMember.displayName || '群組成員',
+        },
+      );
+      if (!record) {
+        response.status(404).json({ error: '找不到可恢復的資訊。' });
+        return;
+      }
+      response.set('cache-control', 'private, no-store, max-age=0');
+      response.json({
+        ok: true,
+        record: serializeRecord(record, restoredAt),
+      });
     } catch (error) {
       next(error);
     }
@@ -126,4 +187,9 @@ function createLiffRouter({
   return router;
 }
 
-module.exports = { createLiffRouter, serializeRecord };
+module.exports = {
+  createLiffRouter,
+  serializeHistoryRecord,
+  serializeRecord,
+  HISTORY_RETENTION_MS,
+};

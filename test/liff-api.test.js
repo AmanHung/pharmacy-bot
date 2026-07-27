@@ -125,3 +125,65 @@ test('LIFF 已處理操作會記錄操作者身分', async (context) => {
   assert.equal(completion.details.completedByUserId, 'U1');
   assert.equal(completion.details.completedByName, '王藥師');
 });
+
+test('LIFF 最近處理區顯示操作者並可恢復紀錄', async (context) => {
+  let restoration;
+  const router = createLiffRouter({
+    groupId: 'G1',
+    authorize: async () => ({
+      userId: 'U1',
+      displayName: '王藥師',
+    }),
+    repository: {
+      async removeCompletedRecordsBefore() {
+        return 0;
+      },
+      async listCompletedRecords(scope, filters) {
+        assert.deepEqual(scope, { type: 'group', id: 'G1' });
+        assert.ok(filters.completedSince < Date.now());
+        return [
+          {
+            shortId: 'H-DONE01',
+            category: 'handover',
+            content: '已完成交班',
+            authorName: '李藥師',
+            createdAt: 1000,
+            status: 'completed',
+            completedAt: 2000,
+            completedByName: '王藥師',
+          },
+        ];
+      },
+      async restoreRecord(scope, shortId, details) {
+        restoration = { scope, shortId, details };
+        return {
+          shortId,
+          category: 'handover',
+          content: '已完成交班',
+          authorName: '李藥師',
+          createdAt: 1000,
+          status: 'open',
+        };
+      },
+    },
+    imageStorage: null,
+  });
+  const server = await startRouter(router);
+  context.after(server.close);
+
+  const historyResponse = await fetch(`${server.baseUrl}/api/liff/history`);
+  const historyPayload = await historyResponse.json();
+  assert.equal(historyResponse.status, 200);
+  assert.equal(historyPayload.records[0].completedByName, '王藥師');
+  assert.equal(historyPayload.records[0].status, 'completed');
+
+  const restoreResponse = await fetch(
+    `${server.baseUrl}/api/liff/records/H-DONE01/restore`,
+    { method: 'POST' },
+  );
+  const restorePayload = await restoreResponse.json();
+  assert.equal(restoreResponse.status, 200);
+  assert.equal(restoration.shortId, 'H-DONE01');
+  assert.equal(restoration.details.restoredByName, '王藥師');
+  assert.equal(restorePayload.record.shortId, 'H-DONE01');
+});

@@ -5,7 +5,7 @@
     "pharmacy_scopes": {
       "$scopeId": {
         "records": {
-          ".indexOn": ["createdAt", "shortId", "sourceMessageId"]
+          ".indexOn": ["createdAt", "completedAt", "shortId", "sourceMessageId"]
         }
       }
     }

@@ -17,7 +17,7 @@ const QUERY_RESULT_LIMIT = 100;
 function getAutomaticRecordCategory(text) {
   const normalized = String(text || '').replace(/\s+/gu, '');
   const categories = [
-    { category: 'medication', keywords: /(缺藥|換藥)/u },
+    { category: 'medication', keywords: /(缺藥|換藥|鎖檔|開檔)/u },
     { category: 'handover', keywords: /交班/u },
     { category: 'education', keywords: /(上課|課程)/u },
     { category: 'notice', keywords: /公告/u },
