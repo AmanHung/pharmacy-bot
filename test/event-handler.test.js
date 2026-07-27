@@ -238,6 +238,58 @@ test('回覆圖片新增公告時會保存原圖引用資訊', async () => {
   assert.equal(savedRecord.sourceQuoteToken, 'image-quote-token');
 });
 
+test('引用圖片會保存私有圖片路徑供 LIFF 使用', async () => {
+  let savedReference;
+  let savedRecord;
+  const { handler } = createFixtures(
+    {
+      async saveMessageReference(_scope, _messageId, reference) {
+        savedReference = reference;
+      },
+      async getMessageReference() {
+        return savedReference;
+      },
+      async saveRecord(_scope, _eventKey, record) {
+        savedRecord = record;
+        return { record, duplicate: false };
+      },
+    },
+    {
+      imageStorage: {
+        async saveLineImage(scope, messageId) {
+          assert.deepEqual(scope, { type: 'group', id: 'G1' });
+          assert.equal(messageId, 'image-message-2');
+          return {
+            storagePath: 'pharmacy-images/G1/image-message-2.jpg',
+            contentType: 'image/jpeg',
+            size: 123,
+          };
+        },
+      },
+    },
+  );
+
+  await handler({
+    type: 'message',
+    timestamp: 1721779199000,
+    source: { type: 'group', groupId: 'G1', userId: 'U1' },
+    message: {
+      type: 'image',
+      id: 'image-message-2',
+      quoteToken: 'image-quote-token-2',
+    },
+  });
+
+  const event = textEvent('/n 請參考圖片說明');
+  event.message.quotedMessageId = 'image-message-2';
+  await handler(event);
+
+  assert.equal(
+    savedRecord.sourceImagePath,
+    'pharmacy-images/G1/image-message-2.jpg',
+  );
+});
+
 test('回覆含記事本連結的訊息新增教育訓練時會保存連結', async () => {
   let references = new Map();
   let savedRecord;

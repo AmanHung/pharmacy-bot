@@ -101,6 +101,7 @@ async function getGroupName(client, source) {
 function createEventHandler({
   client,
   repository,
+  imageStorage = null,
   allowedGroupIds = new Set(),
   adminUserIds = new Set(),
   now = () => Date.now(),
@@ -266,11 +267,29 @@ function createEventHandler({
         event.message.quoteToken &&
         typeof repository.saveMessageReference === 'function'
       ) {
+        let storedImage = null;
+        if (imageStorage) {
+          try {
+            storedImage = await imageStorage.saveLineImage(
+              scope,
+              event.message.id,
+            );
+          } catch (error) {
+            console.warn('Unable to store LINE image:', error.message);
+          }
+        }
         await repository.saveMessageReference(scope, event.message.id, {
           type: 'image',
           quoteToken: event.message.quoteToken,
           authorUserId: event.source?.userId || null,
           createdAt: event.timestamp || now(),
+          ...(storedImage
+            ? {
+                storagePath: storedImage.storagePath,
+                contentType: storedImage.contentType,
+                size: storedImage.size,
+              }
+            : {}),
         });
       }
       return null;
@@ -370,6 +389,9 @@ function createEventHandler({
               sourceReferenceType: sourceReference.type || 'text',
               sourceQuoteToken: sourceReference.quoteToken,
               ...(sourceReference.url ? { sourceUrl: sourceReference.url } : {}),
+              ...(sourceReference.storagePath
+                ? { sourceImagePath: sourceReference.storagePath }
+                : {}),
             }
           : {}),
         ...(expiresAt ? { expiresAt } : {}),

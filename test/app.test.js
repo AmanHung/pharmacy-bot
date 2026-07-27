@@ -158,3 +158,20 @@ test('缺少或錯誤排程密鑰時不會推播', async (context) => {
   assert.equal(response.status, 401);
   assert.equal(sendCount, 0);
 });
+
+test('LIFF 資訊中心頁面可載入且未設定 API 時安全拒絕', async (context) => {
+  const server = await startTestServer(async () => {});
+  context.after(server.close);
+
+  const pageResponse = await fetch(`${server.baseUrl}/liff`);
+  const page = await pageResponse.text();
+  assert.equal(pageResponse.status, 200);
+  assert.match(page, /藥劑科資訊中心/);
+  assert.equal(
+    pageResponse.headers.get('cache-control'),
+    'private, no-store, max-age=0',
+  );
+
+  const apiResponse = await fetch(`${server.baseUrl}/api/liff/records`);
+  assert.equal(apiResponse.status, 503);
+});

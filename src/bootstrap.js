@@ -3,7 +3,13 @@ const { createExpressApp } = require('./app');
 const { loadConfig } = require('./config');
 const { createDailySummarySender } = require('./daily-summary');
 const { createEventHandler } = require('./event-handler');
-const { createFirebaseDatabase } = require('./firebase');
+const {
+  createFirebaseDatabase,
+  createFirebaseStorage,
+} = require('./firebase');
+const { createImageStorage } = require('./image-storage');
+const { createLiffRouter } = require('./liff-api');
+const { createLiffAuthorizer } = require('./liff-auth');
 const { createRecordRepository } = require('./repository');
 
 function createApplication() {
@@ -12,12 +18,18 @@ function createApplication() {
   const repository = createRecordRepository(database, {
     drugAliases: config.drugAliases,
   });
+  const storage = createFirebaseStorage(config);
   const client = new line.messagingApi.MessagingApiClient({
     channelAccessToken: config.channelAccessToken,
   });
+  const blobClient = new line.messagingApi.MessagingApiBlobClient({
+    channelAccessToken: config.channelAccessToken,
+  });
+  const imageStorage = createImageStorage({ storage, blobClient });
   const handleEvent = createEventHandler({
     client,
     repository,
+    imageStorage,
     allowedGroupIds: config.allowedGroupIds,
     adminUserIds: config.adminUserIds,
   });
@@ -26,8 +38,26 @@ function createApplication() {
     repository,
     groupId: config.dailySummaryGroupId,
   });
+  const liffRouter =
+    config.liffGroupId && config.liffChannelId
+      ? createLiffRouter({
+          authorize: createLiffAuthorizer({
+            channelId: config.liffChannelId,
+            groupId: config.liffGroupId,
+            messagingClient: client,
+          }),
+          repository,
+          imageStorage,
+          groupId: config.liffGroupId,
+        })
+      : null;
 
-  return createExpressApp({ config, handleEvent, sendDailySummary });
+  return createExpressApp({
+    config,
+    handleEvent,
+    sendDailySummary,
+    liffRouter,
+  });
 }
 
 module.exports = { createApplication };

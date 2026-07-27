@@ -44,6 +44,14 @@ function loadConfig() {
     dailySummaryGroupId:
       process.env.DAILY_SUMMARY_GROUP_ID?.trim() || null,
     cronSecret: process.env.CRON_SECRET?.trim() || null,
+    liffId: process.env.LIFF_ID?.trim() || null,
+    liffChannelId: process.env.LIFF_CHANNEL_ID?.trim() || null,
+    liffGroupId:
+      process.env.LIFF_GROUP_ID?.trim() ||
+      process.env.DAILY_SUMMARY_GROUP_ID?.trim() ||
+      null,
+    firebaseStorageBucket:
+      process.env.FIREBASE_STORAGE_BUCKET?.trim() || null,
   };
 }
 

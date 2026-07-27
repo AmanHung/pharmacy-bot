@@ -1,12 +1,44 @@
 const express = require('express');
 const line = require('@line/bot-sdk');
+const { createLiffPage } = require('./liff-page');
 
-function createExpressApp({ config, handleEvent, sendDailySummary }) {
+function createExpressApp({
+  config,
+  handleEvent,
+  sendDailySummary,
+  liffRouter = null,
+}) {
   const app = express();
 
   app.get('/health', (_request, response) => {
     response.json({ status: 'ok' });
   });
+
+  app.get('/liff', (_request, response) => {
+    response.set({
+      'cache-control': 'private, no-store, max-age=0',
+      'content-security-policy': [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' https://static.line-scdn.net",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' blob: data:",
+        "connect-src 'self' https://*.line.me",
+        "frame-src https://*.line.me",
+        "frame-ancestors 'self' https://*.line.me",
+      ].join('; '),
+      'referrer-policy': 'no-referrer',
+      'x-content-type-options': 'nosniff',
+    });
+    response.type('html').send(createLiffPage(config.liffId));
+  });
+
+  if (liffRouter) {
+    app.use('/api/liff', liffRouter);
+  } else {
+    app.use('/api/liff', (_request, response) => {
+      response.status(503).json({ error: 'LIFF 尚未完成設定。' });
+    });
+  }
 
   app.get('/api/cron/daily-handover-summary', async (request, response) => {
     const expectedAuthorization = config.cronSecret
