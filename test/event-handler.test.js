@@ -135,7 +135,7 @@ test('加入群組時提供可釘選的私人資訊中心說明', async () => {
   assert.match(serialized, /開啟本群組資訊中心/);
   assert.match(serialized, /https:\/\/liff\.line\.me\/123456-test\?groupId=G1/);
   assert.match(serialized, /自動記錄關鍵字/);
-  assert.match(serialized, /每日 08:00/);
+  assert.match(serialized, /每日 08:00～09:00 間推播/);
   assert.doesNotMatch(serialized, /設為公告/);
   assert.doesNotMatch(serialized, /輸入 \/help/);
   assert.match(serialized, /只限目前仍在本群組的成員查看/);

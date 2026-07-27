@@ -98,7 +98,7 @@ function createJoinMessage(liffId, groupId = null) {
     },
     {
       type: 'text',
-      text: '每日 08:00 推播未處理交班及當天課程。',
+      text: '每日 08:00～09:00 間推播未處理交班及當天課程。',
       size: 'xs',
       color: '#0B5D3B',
       weight: 'bold',
