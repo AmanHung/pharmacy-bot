@@ -142,3 +142,28 @@ test('未列入白名單的群組不能透過網址存取', async () => {
       error instanceof LiffAccessError && error.statusCode === 403,
   );
 });
+
+test('未設定群組白名單時以實際群組成員身分授權', async () => {
+  const authorize = createLiffAuthorizer({
+    channelId: 'login-channel-id',
+    groupId: 'G1',
+    messagingClient: {
+      async getGroupMemberProfile(groupId) {
+        assert.equal(groupId, 'G2');
+        return { displayName: '王藥師' };
+      },
+    },
+    fetchImpl: async () => ({
+      ok: true,
+      async json() {
+        return { sub: 'U1' };
+      },
+    }),
+  });
+  const request = requestWithAuthorization('Bearer id-token');
+  request.query.groupId = 'G2';
+
+  const member = await authorize(request);
+
+  assert.equal(member.groupId, 'G2');
+});

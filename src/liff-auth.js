@@ -64,15 +64,13 @@ function createLiffAuthorizer({
   return async function authorizeLiffRequest(request) {
     const requestedGroupId = getRequestedGroupId(request, groupId);
     const configuredGroupIds = new Set(allowedGroupIds);
-    if (groupId) {
-      configuredGroupIds.add(groupId);
-    }
 
     if (!channelId || !requestedGroupId) {
       throw new LiffAccessError('LIFF is not configured.', 503);
     }
     if (
       configuredGroupIds.size > 0 &&
+      requestedGroupId !== groupId &&
       !configuredGroupIds.has(requestedGroupId)
     ) {
       throw new LiffAccessError('此群組尚未開放資訊中心。', 403);
