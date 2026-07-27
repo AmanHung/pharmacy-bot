@@ -40,7 +40,7 @@ function createRetryKey(groupId, dateKey) {
 
 function formatDailySummary(records, currentTime) {
   if (records.length === 0) {
-    return '【每日未處理交班摘要】\n目前沒有未處理交班事項。';
+    return '今日沒有未處理交班事項。';
   }
 
   return formatQueryResult(
@@ -51,6 +51,40 @@ function formatDailySummary(records, currentTime) {
     },
     { currentTime },
   );
+}
+
+function formatTodayEducationSummary(records, currentTime) {
+  if (records.length === 0) {
+    return null;
+  }
+
+  return formatQueryResult(
+    records,
+    {
+      type: 'query',
+      category: 'education',
+    },
+    { currentTime },
+  );
+}
+
+function buildDailyMessages(handoverRecords, educationRecords, currentTime) {
+  const handoverMessage = formatDailySummary(handoverRecords, currentTime);
+  const messages = [
+    typeof handoverMessage === 'string'
+      ? { type: 'text', text: handoverMessage }
+      : handoverMessage,
+  ];
+  const educationMessage = formatTodayEducationSummary(
+    educationRecords,
+    currentTime,
+  );
+
+  if (educationMessage) {
+    messages.push(educationMessage);
+  }
+
+  return messages;
 }
 
 function createDailySummarySender({
@@ -65,26 +99,41 @@ function createDailySummarySender({
     }
 
     const currentTime = now();
-    const records = await repository.listRecords(
-      { type: 'group', id: groupId },
-      {
-        category: 'handover',
+    const dateKey = getTaipeiDateKey(currentTime);
+    const scope = { type: 'group', id: groupId };
+    const handoverRecords = await repository.listRecords(scope, {
+      category: 'handover',
+      activeAt: currentTime,
+      limit: DAILY_SUMMARY_LIMIT,
+    });
+
+    if (typeof repository.removeExpiredEducationRecords === 'function') {
+      await repository.removeExpiredEducationRecords(scope, currentTime);
+    }
+
+    const educationRecords = (
+      await repository.listRecords(scope, {
+        category: 'education',
         activeAt: currentTime,
         limit: DAILY_SUMMARY_LIMIT,
-      },
+      })
+    ).filter(
+      (record) =>
+        record.expiresAt &&
+        getTaipeiDateKey(record.expiresAt) === dateKey,
     );
-    const message = formatDailySummary(records, currentTime);
-    const dateKey = getTaipeiDateKey(currentTime);
+
     const retryKey = createRetryKey(groupId, dateKey);
+    const messages = buildDailyMessages(
+      handoverRecords,
+      educationRecords,
+      currentTime,
+    );
 
     await client.pushMessage(
       {
         to: groupId,
-        messages: [
-          typeof message === 'string'
-            ? { type: 'text', text: message }
-            : message,
-        ],
+        messages,
       },
       retryKey,
     );
@@ -92,12 +141,14 @@ function createDailySummarySender({
     return {
       status: 'sent',
       date: dateKey,
-      recordCount: records.length,
+      recordCount: handoverRecords.length,
+      educationCount: educationRecords.length,
     };
   };
 }
 
 module.exports = {
+  buildDailyMessages,
   createDailySummarySender,
   createRetryKey,
   formatDailySummary,
