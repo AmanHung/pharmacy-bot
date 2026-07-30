@@ -171,6 +171,8 @@ test('LIFF 資訊中心頁面可載入且未設定 API 時安全拒絕', async (
   assert.match(page, /藥劑科資訊中心/);
   assert.match(page, /最近處理/);
   assert.match(page, /restoreRecord/);
+  assert.match(page, /移至最近處理/);
+  assert.match(page, /window\.confirm/);
   assert.equal(
     pageResponse.headers.get('cache-control'),
     'private, no-store, max-age=0',

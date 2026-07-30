@@ -265,7 +265,9 @@ function createLiffPage(liffId) {
           const processed = document.createElement('div');
           processed.className = 'processed-note';
           const resultLabel =
-            record.category === 'handover' ? '已處理' : '已刪除';
+            record.category === 'handover'
+              ? '已處理'
+              : '已移至最近處理';
           processed.textContent =
             resultLabel + '｜' + record.completedByName +
             '｜' + formatDate(record.completedAt);
@@ -294,14 +296,16 @@ function createLiffPage(liffId) {
           );
         } else {
           const actionLabel =
-            record.category === 'handover' ? '已處理' : '刪除';
+            record.category === 'handover'
+              ? '標記已處理'
+              : '移至最近處理';
           const actionClass =
             record.category === 'handover' ? 'complete' : 'delete';
           actions.append(
             button(
               actionLabel,
               actionClass,
-              () => completeRecord(record.shortId)
+              () => confirmRecordAction(record)
             )
           );
         }
@@ -333,6 +337,19 @@ function createLiffPage(liffId) {
         statusNode.textContent = error.message;
         identityNode.textContent = '無法驗證群組成員身分';
       }
+    }
+
+    function confirmRecordAction(record) {
+      const confirmation =
+        record.category === 'handover'
+          ? '確定要將這筆交班標記為已處理嗎？'
+          : '確定要將這筆資訊移至最近處理嗎？移入後 30 天內可以恢復。';
+
+      if (!window.confirm(confirmation)) {
+        return;
+      }
+
+      completeRecord(record.shortId);
     }
 
     async function completeRecord(shortId) {
