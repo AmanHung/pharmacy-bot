@@ -872,6 +872,33 @@ test('handover, education, and notice keywords select their matching categories'
   ]);
 });
 
+test('公告寫入資訊中心時會移除 @All 標記', async () => {
+  const savedContents = [];
+  const { handler } = createFixtures({
+    async saveRecord(_scope, _eventKey, record) {
+      savedContents.push(record.content);
+      return { record, duplicate: false };
+    },
+  });
+
+  await handler(textEvent('@All 請同仁閱讀最新通知'));
+  await handler(
+    textEvent('/n @all 系統公告', {
+      webhookEventId: '01EVENTNOTICEWITHOUTALL',
+      message: {
+        ...textEvent('').message,
+        id: 'message-notice-without-all',
+        text: '/n @all 系統公告',
+      },
+    }),
+  );
+
+  assert.deepEqual(savedContents, [
+    '請同仁閱讀最新通知',
+    '系統公告',
+  ]);
+});
+
 test('when automatic keywords overlap, medication takes priority', async () => {
   let savedRecord;
   const { handler } = createFixtures({

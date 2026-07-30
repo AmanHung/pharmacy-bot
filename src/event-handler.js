@@ -70,6 +70,13 @@ function getAutomaticRecordCategory(text, mention = null) {
   return match.category;
 }
 
+function stripNoticeAudienceTags(text) {
+  return String(text || '')
+    .replace(/(^|\s)@all\b/giu, ' ')
+    .replace(/[ \t]{2,}/gu, ' ')
+    .trim();
+}
+
 function extractFirstWebUrl(text) {
   const match = String(text || '').match(/https?:\/\/[^\s<>"']+/iu);
   if (!match) {
@@ -405,7 +412,10 @@ function createEventHandler({
             }),
           );
         }
-        content = deadline.content;
+        content = stripNoticeAudienceTags(deadline.content);
+        if (!content) {
+          return acknowledgeSilently(event);
+        }
         expiresAt = deadline.expiresAt;
       }
       if (command.category === 'education') {
@@ -472,4 +482,5 @@ module.exports = {
   getDisplayName,
   getGroupName,
   isCompletionReply,
+  stripNoticeAudienceTags,
 };
