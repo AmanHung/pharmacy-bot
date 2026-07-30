@@ -20,7 +20,7 @@ test('LIFF 紀錄不暴露群組 ID 或圖片儲存路徑', () => {
     serializeRecord({
       shortId: 'N-ONE001',
       category: 'notice',
-      content: '測試公告',
+      content: '@All 測試公告',
       authorName: '王藥師',
       createdAt: 1000,
       sourceImagePath: 'private/image.jpg',

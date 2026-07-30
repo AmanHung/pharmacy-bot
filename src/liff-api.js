@@ -4,11 +4,21 @@ const { LiffAccessError } = require('./liff-auth');
 const LIFF_RECORD_LIMIT = 100;
 const HISTORY_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
+function stripNoticeAudienceTags(text) {
+  return String(text || '')
+    .replace(/(^|\s)@all\b/giu, ' ')
+    .replace(/[ \t]{2,}/gu, ' ')
+    .trim();
+}
+
 function serializeRecord(record, currentTime = Date.now()) {
   return {
     shortId: record.shortId,
     category: record.category,
-    content: record.content,
+    content:
+      record.category === 'notice'
+        ? stripNoticeAudienceTags(record.content)
+        : record.content,
     authorName:
       record.category === 'handover' ? record.authorName || null : null,
     createdAt: record.createdAt,
