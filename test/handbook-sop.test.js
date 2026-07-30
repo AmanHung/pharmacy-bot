@@ -4,6 +4,7 @@ const {
   createHandbookSopPublisher,
   createSopId,
   createSopTitle,
+  removeAllMention,
 } = require('../src/handbook-sop');
 
 test('建立穩定且不暴露群組 ID 的 SOP 文件編號', () => {
@@ -16,6 +17,15 @@ test('公告標題會壓縮空白並限制長度', () => {
   assert.equal(createSopTitle('  測試\n公告  '), '測試 公告');
   assert.equal(createSopTitle(''), 'LINE 公告');
   assert.ok(createSopTitle('測'.repeat(80)).length <= 60);
+});
+
+test('轉入 SOP 時會移除 @All 群組標註', () => {
+  assert.equal(removeAllMention('@All 請留意公告'), '請留意公告');
+  assert.equal(removeAllMention('提醒 @all：請留意公告'), '提醒：請留意公告');
+  assert.equal(
+    removeAllMention('聯絡信箱 test@all.example.com'),
+    '聯絡信箱 test@all.example.com',
+  );
 });
 
 test('公告文字與圖片會建立為 SOP 文件', async () => {
@@ -62,7 +72,7 @@ test('公告文字與圖片會建立為 SOP 文件', async () => {
     record: {
       shortId: 'N-ONE001',
       category: 'notice',
-      content: '測試公告',
+      content: '@All 測試公告',
       createdAt: 1000,
     },
     image: {

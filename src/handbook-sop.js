@@ -12,8 +12,20 @@ function createSopId(groupId, shortId) {
   return `line-notice-${digest}`;
 }
 
+function removeAllMention(content) {
+  return String(content || '')
+    .replace(
+      /(^|[\s，。！？、；：:,.!?;()[\]{}])@all(?=$|[\s，。！？、；：:,.!?;()[\]{}])/giu,
+      '$1',
+    )
+    .replace(/[ \t]+(?=\r?\n)/gu, '')
+    .replace(/[ \t]{2,}/gu, ' ')
+    .replace(/[ \t]+([，。！？、；：:,.!?;])/gu, '$1')
+    .trim();
+}
+
 function createSopTitle(content) {
-  const normalized = String(content || '').replace(/\s+/gu, ' ').trim();
+  const normalized = removeAllMention(content).replace(/\s+/gu, ' ').trim();
   if (!normalized) {
     return 'LINE 公告';
   }
@@ -75,6 +87,7 @@ function createHandbookSopPublisher({
       }
 
       const sopId = createSopId(groupId, record.shortId);
+      const sopContent = removeAllMention(record.content);
       const sopRef = firestore.collection('sop_articles').doc(sopId);
       const existing = await sopRef.get();
       if (existing.exists) {
@@ -94,9 +107,9 @@ function createHandbookSopPublisher({
 
       try {
         await sopRef.create({
-          title: createSopTitle(record.content),
+          title: createSopTitle(sopContent),
           category: '行政流程',
-          content: `${record.content || ''}${sourceLink}`.trim(),
+          content: `${sopContent}${sourceLink}`.trim(),
           attachmentUrl,
           keywords: ['LINE', '公告'],
           description: '由 LINE 資訊中心公告轉入',
@@ -127,6 +140,7 @@ module.exports = {
   createHandbookSopPublisher,
   createSopId,
   createSopTitle,
+  removeAllMention,
   uploadImageToDrive,
   MAX_DRIVE_UPLOAD_BYTES,
 };
