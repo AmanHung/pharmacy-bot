@@ -36,6 +36,8 @@ test('LIFF 紀錄不暴露群組 ID 或圖片儲存路徑', () => {
       expiresAt: null,
       hasImage: true,
       sourceUrl: null,
+      convertedToSopAt: null,
+      convertedToSopByName: null,
     },
   );
 });
@@ -189,6 +191,74 @@ test('LIFF 最近處理區顯示操作者並可恢復紀錄', async (context) =>
   assert.equal(restoration.shortId, 'H-DONE01');
   assert.equal(restoration.details.restoredByName, '王藥師');
   assert.equal(restorePayload.record.shortId, 'H-DONE01');
+});
+
+test('LIFF 公告可連同私有圖片轉入新人導航系統 SOP', async (context) => {
+  let published;
+  let marked;
+  const router = createLiffRouter({
+    authorize: async () => ({
+      userId: 'U1',
+      displayName: '王藥師',
+      groupId: 'G1',
+    }),
+    repository: {
+      async getRecordByShortId(scope, shortId) {
+        assert.deepEqual(scope, { type: 'group', id: 'G1' });
+        assert.equal(shortId, 'N-ONE001');
+        return {
+          shortId,
+          category: 'notice',
+          content: '測試公告',
+          createdAt: 1000,
+          sourceImagePath: 'pharmacy_images/group/message-1',
+        };
+      },
+      async markRecordConvertedToSop(scope, shortId, details) {
+        marked = { scope, shortId, details };
+        return {
+          shortId,
+          category: 'notice',
+          content: '測試公告',
+          createdAt: 1000,
+          convertedToSopAt: details.convertedToSopAt,
+          convertedToSopByName: details.convertedToSopByName,
+        };
+      },
+    },
+    imageStorage: {
+      async readImage(path) {
+        assert.equal(path, 'pharmacy_images/group/message-1');
+        return {
+          buffer: Buffer.from('image'),
+          contentType: 'image/jpeg',
+        };
+      },
+    },
+    sopPublisher: {
+      async publishNotice(input) {
+        published = input;
+        return { id: 'line-notice-test', alreadyExists: false };
+      },
+    },
+  });
+  const server = await startRouter(router);
+  context.after(server.close);
+
+  const response = await fetch(
+    `${server.baseUrl}/api/liff/records/N-ONE001/convert-to-sop`,
+    { method: 'POST' },
+  );
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(published.actorName, '王藥師');
+  assert.equal(published.record.content, '測試公告');
+  assert.equal(published.image.buffer.toString(), 'image');
+  assert.equal(marked.details.handbookSopId, 'line-notice-test');
+  assert.equal(marked.details.convertedToSopByUserId, 'U1');
+  assert.equal(payload.sopId, 'line-notice-test');
+  assert.equal(payload.record.convertedToSopByName, '王藥師');
 });
 
 test('最近處理永久清除時同步刪除所屬圖片', async (context) => {

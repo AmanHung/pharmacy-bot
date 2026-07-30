@@ -3,7 +3,11 @@ const { createExpressApp } = require('./app');
 const { loadConfig } = require('./config');
 const { createDailySummarySender } = require('./daily-summary');
 const { createEventHandler } = require('./event-handler');
-const { createFirebaseDatabase } = require('./firebase');
+const {
+  createFirebaseDatabase,
+  createHandbookFirestore,
+} = require('./firebase');
+const { createHandbookSopPublisher } = require('./handbook-sop');
 const { createImageStorage } = require('./image-storage');
 const {
   createLiffRouter,
@@ -25,6 +29,10 @@ function createApplication() {
     channelAccessToken: config.channelAccessToken,
   });
   const imageStorage = createImageStorage({ database, blobClient });
+  const sopPublisher = createHandbookSopPublisher({
+    firestore: createHandbookFirestore(config),
+    gasApiUrl: config.handbookGasApiUrl,
+  });
   const handleEvent = createEventHandler({
     client,
     repository,
@@ -49,6 +57,7 @@ function createApplication() {
           }),
           repository,
           imageStorage,
+          sopPublisher,
         })
       : null;
 

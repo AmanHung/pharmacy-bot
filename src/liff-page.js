@@ -94,6 +94,7 @@ function createLiffPage(liffId) {
     .image { color: var(--green); background: var(--green-soft); }
     .link { color: #315f8a; background: #eaf2fa; text-decoration: none; }
     .complete { color: #246b3b; background: #e8f5e9; }
+    .convert { color: #5b3b8c; background: #f0eafb; }
     .delete { color: var(--danger); background: #fdecec; }
     .restore { color: #315f8a; background: #eaf2fa; }
     .processed-note {
@@ -153,7 +154,8 @@ function createLiffPage(liffId) {
       category: 'all',
       keyword: '',
       idToken: '',
-      groupId: ''
+      groupId: '',
+      sopConversionEnabled: false
     };
     const recordsNode = document.getElementById('records');
     const statusNode = document.getElementById('status');
@@ -290,6 +292,29 @@ function createLiffPage(liffId) {
           link.rel = 'noopener noreferrer';
           actions.append(link);
         }
+        if (
+          record.category === 'notice' &&
+          state.sopConversionEnabled
+        ) {
+          if (record.convertedToSopAt) {
+            const converted = document.createElement('span');
+            converted.className = 'processed-note';
+            converted.textContent =
+              '已轉 SOP｜' +
+              (record.convertedToSopByName || '群組成員') +
+              '｜' +
+              formatDate(record.convertedToSopAt);
+            actions.append(converted);
+          } else {
+            actions.append(
+              button(
+                '轉 SOP',
+                'convert',
+                () => convertRecordToSop(record)
+              )
+            );
+          }
+        }
         if (record.status === 'completed') {
           actions.append(
             button('恢復', 'restore', () => restoreRecord(record.shortId))
@@ -330,6 +355,8 @@ function createLiffPage(liffId) {
         ]);
         state.records = recordsPayload.records || [];
         state.history = historyPayload.records || [];
+        state.sopConversionEnabled =
+          Boolean(recordsPayload.sopConversionEnabled);
         identityNode.textContent =
           recordsPayload.displayName + '｜已驗證為群組成員';
         render();
@@ -350,6 +377,36 @@ function createLiffPage(liffId) {
       }
 
       completeRecord(record.shortId);
+    }
+
+    async function convertRecordToSop(record) {
+      const confirmed = window.confirm(
+        '確定要把這筆公告的文字與圖片轉入新人導航系統 SOP 文件區嗎？'
+      );
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        const response = await api(
+          '/api/liff/records/' +
+            encodeURIComponent(record.shortId) +
+            '/convert-to-sop', {
+            method: 'POST'
+          });
+        const payload = await response.json();
+        state.records = state.records.map((item) =>
+          item.shortId === record.shortId ? payload.record : item
+        );
+        render();
+        alert(
+          payload.alreadyExists
+            ? '這筆公告先前已轉為 SOP。'
+            : '已轉入新人導航系統的 SOP 文件區。'
+        );
+      } catch (error) {
+        alert(error.message);
+      }
     }
 
     async function completeRecord(shortId) {

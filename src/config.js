@@ -50,6 +50,10 @@ function loadConfig() {
       process.env.LIFF_GROUP_ID?.trim() ||
       process.env.DAILY_SUMMARY_GROUP_ID?.trim() ||
       null,
+    handbookFirebaseProjectId:
+      process.env.HANDBOOK_FIREBASE_PROJECT_ID?.trim() || null,
+    handbookGasApiUrl:
+      process.env.HANDBOOK_GAS_API_URL?.trim() || null,
   };
 }
 

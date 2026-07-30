@@ -63,6 +63,17 @@ npm start
 
 舊版測試紀錄仍保留在 `pharmacy_records`，新版本不會刪除或覆寫。由於舊資料沒有 LINE 群組 ID，為避免不同聊天室的資料混在一起，新版查詢不會自動讀取舊紀錄。需要保留的資料應在確認所屬群組後另行遷移。
 
+## 將公告轉入新人導航系統 SOP
+
+LIFF 資訊中心可在公告卡片顯示「轉 SOP」按鈕，將公告文字與原始圖片建立至新人導航系統的 `sop_articles`。
+
+Vercel 需設定：
+
+- `HANDBOOK_FIREBASE_PROJECT_ID=fengyuan-handbook`
+- `HANDBOOK_GAS_API_URL`：新人導航系統既有的 Apps Script 上傳網址。
+
+`FIREBASE_CREDENTIALS` 所屬服務帳號必須在 `fengyuan-handbook` 專案取得 `Cloud Datastore User` 權限。管理憑證只保留於 Vercel 後端環境，不可放入 LIFF 或新人導航系統前端。
+
 ## 部署前檢查
 
 1. 在 Vercel 設定全部必要環境變數。

@@ -188,6 +188,27 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
     return match?.record || null;
   }
 
+  async function markRecordConvertedToSop(scope, shortId, conversion) {
+    const match = await findRecordByShortId(scope, shortId);
+    if (!match) {
+      return null;
+    }
+
+    const updates = {
+      handbookSopId: conversion.handbookSopId,
+      convertedToSopAt: conversion.convertedToSopAt,
+      convertedToSopByUserId: conversion.convertedToSopByUserId,
+      convertedToSopByName: conversion.convertedToSopByName,
+      updatedAt: conversion.convertedToSopAt,
+    };
+    await recordsRef(scope).child(match.key).update(updates);
+
+    return {
+      ...match.record,
+      ...updates,
+    };
+  }
+
   async function completeRecord(scope, shortId, completion) {
     const match = await findRecordByShortId(scope, shortId);
     if (!match) {
@@ -354,6 +375,7 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
     getRecordByShortId,
     listCompletedRecords,
     listRecords,
+    markRecordConvertedToSop,
     removeCompletedRecordsBefore,
     removeExpiredEducationRecords,
     registerScope,

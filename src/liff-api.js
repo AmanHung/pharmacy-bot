@@ -17,6 +17,8 @@ function serializeRecord(record, currentTime = Date.now()) {
       record.sourceImagePath,
     ),
     sourceUrl: record.sourceUrl || null,
+    convertedToSopAt: record.convertedToSopAt || null,
+    convertedToSopByName: record.convertedToSopByName || null,
   };
 }
 
@@ -33,6 +35,7 @@ function createLiffRouter({
   authorize,
   repository,
   imageStorage,
+  sopPublisher = null,
 }) {
   const router = express.Router();
 
@@ -71,6 +74,7 @@ function createLiffRouter({
       response.set('cache-control', 'private, no-store, max-age=0');
       response.json({
         displayName: request.liffMember.displayName || '群組成員',
+        sopConversionEnabled: Boolean(sopPublisher),
         records: records.map((record) => serializeRecord(record, currentTime)),
       });
     } catch (error) {
@@ -156,6 +160,83 @@ function createLiffRouter({
       next(error);
     }
   });
+
+  router.post(
+    '/records/:shortId/convert-to-sop',
+    async (request, response, next) => {
+      try {
+        if (!sopPublisher) {
+          response.status(503).json({
+            error: '轉 SOP 功能尚未完成後端設定。',
+          });
+          return;
+        }
+
+        const scope = getScope(request);
+        const record = await repository.getRecordByShortId(
+          scope,
+          request.params.shortId,
+        );
+        if (!record) {
+          response.status(404).json({ error: '找不到這筆公告。' });
+          return;
+        }
+        if (record.category !== 'notice') {
+          response.status(400).json({ error: '只有公告可以轉為 SOP。' });
+          return;
+        }
+        if (record.handbookSopId) {
+          response.json({
+            ok: true,
+            sopId: record.handbookSopId,
+            alreadyExists: true,
+            record: serializeRecord(record),
+          });
+          return;
+        }
+
+        let image = null;
+        if (record.sourceImagePath) {
+          image = await imageStorage?.readImage(record.sourceImagePath);
+          if (!image) {
+            response.status(409).json({
+              error: '公告原圖已不存在，請重新附圖後再轉為 SOP。',
+            });
+            return;
+          }
+        }
+
+        const result = await sopPublisher.publishNotice({
+          groupId: request.liffMember.groupId,
+          record,
+          actorName: request.liffMember.displayName || '群組成員',
+          image,
+        });
+        const convertedAt = Date.now();
+        const updatedRecord = await repository.markRecordConvertedToSop(
+          scope,
+          record.shortId,
+          {
+            handbookSopId: result.id,
+            convertedToSopAt: convertedAt,
+            convertedToSopByUserId: request.liffMember.userId,
+            convertedToSopByName:
+              request.liffMember.displayName || '群組成員',
+          },
+        );
+
+        response.set('cache-control', 'private, no-store, max-age=0');
+        response.json({
+          ok: true,
+          sopId: result.id,
+          alreadyExists: result.alreadyExists,
+          record: serializeRecord(updatedRecord || record, convertedAt),
+        });
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
 
   router.get('/images/:shortId', async (request, response, next) => {
     try {
