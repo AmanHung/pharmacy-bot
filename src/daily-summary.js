@@ -38,7 +38,7 @@ function createRetryKey(groupId, dateKey) {
   ].join('-');
 }
 
-function formatDailySummary(records, currentTime) {
+function formatDailySummary(records, currentTime, options = {}) {
   if (records.length === 0) {
     return '今日沒有未處理交班事項。';
   }
@@ -49,11 +49,11 @@ function formatDailySummary(records, currentTime) {
       type: 'open-query',
       category: 'handover',
     },
-    { currentTime },
+    { currentTime, dailySummary: true, ...options },
   );
 }
 
-function formatTodayEducationSummary(records, currentTime) {
+function formatTodayEducationSummary(records, currentTime, options = {}) {
   if (records.length === 0) {
     return null;
   }
@@ -64,12 +64,21 @@ function formatTodayEducationSummary(records, currentTime) {
       type: 'query',
       category: 'education',
     },
-    { currentTime },
+    { currentTime, dailySummary: true, ...options },
   );
 }
 
-function buildDailyMessages(handoverRecords, educationRecords, currentTime) {
-  const handoverMessage = formatDailySummary(handoverRecords, currentTime);
+function buildDailyMessages(
+  handoverRecords,
+  educationRecords,
+  currentTime,
+  options = {},
+) {
+  const handoverMessage = formatDailySummary(
+    handoverRecords,
+    currentTime,
+    options,
+  );
   const messages = [
     typeof handoverMessage === 'string'
       ? { type: 'text', text: handoverMessage }
@@ -78,6 +87,7 @@ function buildDailyMessages(handoverRecords, educationRecords, currentTime) {
   const educationMessage = formatTodayEducationSummary(
     educationRecords,
     currentTime,
+    options,
   );
 
   if (educationMessage) {
@@ -91,6 +101,7 @@ function createDailySummarySender({
   client,
   repository,
   groupId,
+  liffId = null,
   now = () => Date.now(),
 }) {
   return async function sendDailySummary() {
@@ -128,6 +139,7 @@ function createDailySummarySender({
       handoverRecords,
       educationRecords,
       currentTime,
+      { liffId, groupId },
     );
 
     await client.pushMessage(

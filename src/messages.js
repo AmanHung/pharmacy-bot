@@ -463,7 +463,12 @@ function formatCompletedRecord(record) {
   return `${completedByName}${actionLabel}：${cleanText(record.content, 500)}`;
 }
 
-function createRecordComponents(record, filters, currentTime) {
+function createRecordComponents(
+  record,
+  filters,
+  currentTime,
+  { dailySummary = false, liffId = null, groupId = null } = {},
+) {
   const actionLabel =
     record.category === 'handover' ? '已處理' : '刪除';
   const actionBackground =
@@ -476,6 +481,13 @@ function createRecordComponents(record, filters, currentTime) {
   const isNoteLink = Boolean(sourceUrl) || isLineNoteUrl(contentUrl);
   const linkLabel = isNoteLink ? '開啟記事本' : '開啟連結';
   const linkActionLabel = isNoteLink ? '開啟原始記事本' : '開啟連結';
+  const hasSource = Boolean(
+    linkUrl || record.sourceQuoteToken || record.sourceImagePath,
+  );
+  const informationCenterUrl =
+    dailySummary && liffId && hasSource
+      ? createLiffUrl(liffId, groupId)
+      : null;
   const metadata = [
     getCategoryLabel(record.category),
     formatTimestamp(record.createdAt),
@@ -523,7 +535,18 @@ function createRecordComponents(record, filters, currentTime) {
             wrap: true,
             flex: 1,
           },
-          ...(linkUrl
+          ...(informationCenterUrl
+            ? [
+                createPillAction('資訊中心', {
+                  type: 'uri',
+                  label: '開啟資訊中心',
+                  uri: informationCenterUrl,
+                  altUri: {
+                    desktop: informationCenterUrl,
+                  },
+                }),
+              ]
+            : !dailySummary && linkUrl
             ? [
                 createPillAction(linkLabel, {
                   type: 'uri',
@@ -535,7 +558,7 @@ function createRecordComponents(record, filters, currentTime) {
                 }),
               ]
             : []),
-          ...(record.sourceQuoteToken && !sourceUrl
+          ...(!dailySummary && record.sourceQuoteToken && !sourceUrl
             ? [
                 createPillAction(
                   record.sourceReferenceType === 'image'
@@ -552,16 +575,20 @@ function createRecordComponents(record, filters, currentTime) {
                 ),
               ]
             : []),
-          createPillAction(
-            actionLabel,
-            {
-              type: 'postback',
-              label: actionLabel,
-              data: buildCompletePostback(record.shortId),
-            },
-            actionBackground,
-            actionTextColor,
-          ),
+          ...(!dailySummary
+            ? [
+                createPillAction(
+                  actionLabel,
+                  {
+                    type: 'postback',
+                    label: actionLabel,
+                    data: buildCompletePostback(record.shortId),
+                  },
+                  actionBackground,
+                  actionTextColor,
+                ),
+              ]
+            : []),
         ],
       },
     ],
@@ -607,10 +634,43 @@ function createPaginationFooter(filters, page, pageCount) {
   };
 }
 
+function createDailySummaryFooter(liffId, groupId, pageCount) {
+  if (!liffId || pageCount <= 1) {
+    return undefined;
+  }
+
+  const informationCenterUrl = createLiffUrl(liffId, groupId);
+  return {
+    type: 'box',
+    layout: 'vertical',
+    contents: [
+      {
+        type: 'button',
+        style: 'primary',
+        height: 'sm',
+        action: {
+          type: 'uri',
+          label: '開啟資訊中心查看全部',
+          uri: informationCenterUrl,
+          altUri: {
+            desktop: informationCenterUrl,
+          },
+        },
+      },
+    ],
+  };
+}
+
 function formatQueryResult(
   records,
   filters = {},
-  { currentTime = Date.now(), page = 0 } = {},
+  {
+    currentTime = Date.now(),
+    page = 0,
+    dailySummary = false,
+    liffId = null,
+    groupId = null,
+  } = {},
 ) {
   if (records.length === 0) {
     return '查無符合條件的資訊。';
@@ -642,10 +702,18 @@ function formatQueryResult(
         margin: 'md',
       });
     }
-    bodyContents.push(createRecordComponents(record, filters, currentTime));
+    bodyContents.push(
+      createRecordComponents(record, filters, currentTime, {
+        dailySummary,
+        liffId,
+        groupId,
+      }),
+    );
   }
 
-  const footer = createPaginationFooter(filters, safePage, pageCount);
+  const footer = dailySummary
+    ? createDailySummaryFooter(liffId, groupId, pageCount)
+    : createPaginationFooter(filters, safePage, pageCount);
 
   return {
     type: 'flex',

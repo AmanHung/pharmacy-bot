@@ -35,6 +35,8 @@ test('每日摘要會查詢所有未處理交班並推播到指定群組', async
       authorName: '王藥師',
       status: 'open',
       createdAt: Date.parse('2026-07-23T01:00:00.000Z'),
+      sourceReferenceType: 'image',
+      sourceImagePath: 'line-images/G-PRODUCTION/H-ONE001.jpg',
     },
   ];
   const educationRecords = [
@@ -45,11 +47,13 @@ test('每日摘要會查詢所有未處理交班並推播到指定群組', async
       status: 'open',
       createdAt: Date.parse('2026-07-23T01:00:00.000Z'),
       expiresAt: Date.parse('2026-07-24T15:59:59.999Z'),
+      sourceUrl: 'https://example.com/education',
     },
   ];
   const listCalls = [];
   const sender = createDailySummarySender({
     groupId: 'G-PRODUCTION',
+    liffId: '123456-test',
     now: () => Date.parse('2026-07-24T00:00:00.000Z'),
     repository: {
       async listRecords(scope, filters) {
@@ -86,7 +90,37 @@ test('每日摘要會查詢所有未處理交班並推播到指定群組', async
   assert.equal(calls[0].request.messages.length, 2);
   assert.equal(calls[0].request.messages[0].type, 'flex');
   assert.equal(calls[0].request.messages[1].type, 'flex');
+  const serializedMessages = JSON.stringify(calls[0].request.messages);
+  assert.doesNotMatch(serializedMessages, /已處理|刪除|postback/);
+  assert.match(serializedMessages, /開啟資訊中心/);
+  assert.match(
+    serializedMessages,
+    /https:\/\/liff\.line\.me\/123456-test\?groupId=G-PRODUCTION/,
+  );
+  assert.doesNotMatch(serializedMessages, /https:\/\/example\.com\/education/);
   assert.match(calls[0].retryKey, /^[0-9a-f-]{36}$/);
+});
+
+test('每日推播超過一頁時只提供資訊中心連結，不使用群組 postback', () => {
+  const records = Array.from({ length: 6 }, (_, index) => ({
+    shortId: `H-ITEM0${index}`,
+    category: 'handover',
+    content: `交班事項 ${index + 1}`,
+    authorName: '測試同仁',
+    status: 'open',
+    createdAt: Date.parse('2026-07-23T01:00:00.000Z') - index,
+  }));
+
+  const [message] = buildDailyMessages(
+    records,
+    [],
+    Date.parse('2026-07-24T00:00:00.000Z'),
+    { liffId: '123456-test', groupId: 'G-PRODUCTION' },
+  );
+  const serializedMessage = JSON.stringify(message);
+
+  assert.doesNotMatch(serializedMessage, /已處理|刪除|postback|上一頁|下一頁/);
+  assert.match(serializedMessage, /開啟資訊中心查看全部/);
 });
 
 test('沒有未處理交班時仍會推播清空摘要', async () => {

@@ -45,6 +45,7 @@ function createApplication() {
     client,
     repository,
     groupId: config.dailySummaryGroupId,
+    liffId: config.liffId,
   });
   const liffRouter =
     config.liffGroupId && config.liffChannelId
