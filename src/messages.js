@@ -482,7 +482,10 @@ function createRecordComponents(
   const linkLabel = isNoteLink ? '開啟記事本' : '開啟連結';
   const linkActionLabel = isNoteLink ? '開啟原始記事本' : '開啟連結';
   const hasSource = Boolean(
-    linkUrl || record.sourceQuoteToken || record.sourceImagePath,
+    linkUrl ||
+      record.sourceQuoteToken ||
+      record.sourceImagePath ||
+      record.sourceImageSetId,
   );
   const informationCenterUrl =
     dailySummary && liffId && hasSource

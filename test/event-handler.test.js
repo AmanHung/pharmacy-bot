@@ -948,3 +948,63 @@ test('education queries remove expired education records before listing', async 
     activeAt: 1721779200000,
   });
 });
+
+test('replying to one image records the complete LINE image set metadata', async () => {
+  const references = new Map();
+  let savedRecord;
+  const { handler } = createFixtures(
+    {
+      async saveMessageReference(_scope, messageId, reference) {
+        references.set(messageId, reference);
+      },
+      async getMessageReference(_scope, messageId) {
+        return references.get(messageId) || null;
+      },
+      async saveRecord(_scope, _eventKey, record) {
+        savedRecord = record;
+        return { record, duplicate: false };
+      },
+    },
+    {
+      imageStorage: {
+        async saveLineImage(_scope, messageId) {
+          return {
+            storagePath: `pharmacy-images/G1/${messageId}.jpg`,
+            contentType: 'image/jpeg',
+            size: 100,
+          };
+        },
+      },
+    },
+  );
+
+  for (const index of [3, 1, 2]) {
+    await handler({
+      type: 'message',
+      timestamp: 1721779199000 + index,
+      source: { type: 'group', groupId: 'G1', userId: 'U1' },
+      message: {
+        type: 'image',
+        id: `image-message-${index}`,
+        quoteToken: `image-quote-token-${index}`,
+        imageSet: { id: 'LINE-IMAGE-SET-1', index, total: 3 },
+      },
+    });
+  }
+
+  const event = textEvent('/n 多圖公告');
+  event.message.quotedMessageId = 'image-message-2';
+  await handler(event);
+
+  assert.equal(references.size, 3);
+  assert.deepEqual(
+    [...references.values()].map((reference) => reference.imageSetIndex),
+    [3, 1, 2],
+  );
+  assert.equal(savedRecord.sourceImageSetId, 'LINE-IMAGE-SET-1');
+  assert.equal(savedRecord.sourceImageCount, 3);
+  assert.equal(
+    savedRecord.sourceImagePath,
+    'pharmacy-images/G1/image-message-2.jpg',
+  );
+});

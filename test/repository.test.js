@@ -541,3 +541,68 @@ test('expired education records are removed from the scope', async () => {
   assert.deepEqual(removedRecords, { 'expired-course': null });
   assert.deepEqual(permanentlyRemoved, ['education']);
 });
+
+test('image set references are stored and returned in LINE index order', async () => {
+  const values = new Map();
+
+  function snapshot(value, children = []) {
+    return {
+      exists() {
+        return value !== undefined || children.length > 0;
+      },
+      val() {
+        return value ?? null;
+      },
+      forEach(callback) {
+        for (const [key, childValue] of children) {
+          callback({ key, val: () => childValue });
+        }
+      },
+    };
+  }
+
+  function reference(path) {
+    return {
+      child(name) {
+        return reference(`${path}/${name}`);
+      },
+      async set(value) {
+        values.set(path, value);
+      },
+      async once() {
+        if (values.has(path)) {
+          return snapshot(values.get(path));
+        }
+        const prefix = `${path}/`;
+        const children = [...values.entries()]
+          .filter(([entryPath]) => entryPath.startsWith(prefix))
+          .map(([entryPath, value]) => [entryPath.slice(prefix.length), value])
+          .filter(([relativePath]) => !relativePath.includes('/'));
+        return snapshot(undefined, children);
+      },
+    };
+  }
+
+  const repository = createRecordRepository({ ref: reference });
+  const scope = { type: 'group', id: 'G1' };
+  for (const index of [3, 1, 2]) {
+    await repository.saveMessageReference(scope, `message-${index}`, {
+      type: 'image',
+      imageSetId: 'SET-1',
+      imageSetIndex: index,
+      imageSetTotal: 3,
+      storagePath: `image-${index}`,
+    });
+  }
+
+  const references = await repository.getImageSetReferences(scope, 'SET-1');
+
+  assert.deepEqual(
+    references.map((referenceValue) => referenceValue.messageId),
+    ['message-1', 'message-2', 'message-3'],
+  );
+  assert.deepEqual(
+    references.map((referenceValue) => referenceValue.storagePath),
+    ['image-1', 'image-2', 'image-3'],
+  );
+});

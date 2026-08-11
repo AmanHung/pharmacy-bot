@@ -30,6 +30,15 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
     return database.ref(`pharmacy_scopes/${scopeKey}/message_references`);
   }
 
+  function imageSetsRef(scope) {
+    const scopeKey = toFirebaseScopeKey(scope);
+    return database.ref(`pharmacy_scopes/${scopeKey}/image_sets`);
+  }
+
+  function imageSetKey(imageSetId) {
+    return Buffer.from(String(imageSetId), 'utf8').toString('base64url');
+  }
+
   async function registerScope(scope, metadata = {}) {
     await scopeRef(scope).child('metadata').update({
       sourceType: scope.type,
@@ -57,6 +66,19 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
 
   async function saveMessageReference(scope, messageId, reference) {
     await messageReferencesRef(scope).child(messageId).set(reference);
+    if (reference.imageSetId) {
+      const imageIndex = Number(reference.imageSetIndex) || 0;
+      const referenceKey = imageIndex
+        ? String(imageIndex).padStart(4, '0')
+        : Buffer.from(String(messageId), 'utf8').toString('base64url');
+      await imageSetsRef(scope)
+        .child(imageSetKey(reference.imageSetId))
+        .child(referenceKey)
+        .set({
+          ...reference,
+          messageId,
+        });
+    }
   }
 
   async function getMessageReference(scope, messageId) {
@@ -64,6 +86,20 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
       .child(messageId)
       .once('value');
     return snapshot.exists() ? snapshot.val() : null;
+  }
+
+  async function getImageSetReferences(scope, imageSetId) {
+    if (!imageSetId) {
+      return [];
+    }
+    const snapshot = await imageSetsRef(scope)
+      .child(imageSetKey(imageSetId))
+      .once('value');
+    return snapshotValues(snapshot).sort(
+      (left, right) =>
+        (Number(left.imageSetIndex) || 0) -
+        (Number(right.imageSetIndex) || 0),
+    );
   }
 
   async function removeExpiredEducationRecords(
@@ -371,6 +407,7 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
   return {
     completeHandoverBySourceMessageId,
     completeRecord,
+    getImageSetReferences,
     getMessageReference,
     getRecordByShortId,
     listCompletedRecords,

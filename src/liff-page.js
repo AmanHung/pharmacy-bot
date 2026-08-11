@@ -112,6 +112,16 @@ function createLiffPage(liffId) {
       box-shadow: 0 18px 55px rgba(0, 0, 0, .28);
     }
     dialog img { display: block; max-width: 100%; max-height: 78vh; margin: auto; }
+    .image-nav {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 8px;
+      align-items: center;
+      margin-top: 10px;
+    }
+    .image-nav span { text-align: center; color: var(--muted); font-weight: 700; }
+    .image-nav button { color: var(--green); background: var(--green-soft); }
+    .image-nav button:disabled { opacity: .35; cursor: default; }
     dialog .close { margin-top: 10px; width: 100%; }
   </style>
 </head>
@@ -138,6 +148,11 @@ function createLiffPage(liffId) {
   </main>
   <dialog id="imageDialog">
     <img id="imagePreview" alt="原始圖片">
+    <div class="image-nav" id="imageNav">
+      <button id="previousImage" type="button">上一張</button>
+      <span id="imagePosition">第 1／1 張</span>
+      <button id="nextImage" type="button">下一張</button>
+    </div>
     <button class="close" id="closeImage" type="button">關閉</button>
   </dialog>
   <script>
@@ -162,6 +177,15 @@ function createLiffPage(liffId) {
     const identityNode = document.getElementById('identity');
     const imageDialog = document.getElementById('imageDialog');
     const imagePreview = document.getElementById('imagePreview');
+    const imagePosition = document.getElementById('imagePosition');
+    const previousImage = document.getElementById('previousImage');
+    const nextImage = document.getElementById('nextImage');
+    const imageDialogState = {
+      shortId: '',
+      index: 0,
+      count: 0,
+      objectUrl: ''
+    };
 
     function scopedRedirectUri() {
       const url = new URL('/liff', window.location.origin);
@@ -279,8 +303,13 @@ function createLiffPage(liffId) {
         }
 
         if (record.hasImage) {
+          const imageCount = Math.max(1, Number(record.imageCount) || 1);
           actions.append(
-            button('查看原圖', 'image', () => openImage(record.shortId))
+            button(
+              imageCount > 1 ? '查看圖片（' + imageCount + '）' : '查看原圖',
+              'image',
+              () => openImage(record.shortId, 0, imageCount)
+            )
           );
         }
         if (record.sourceUrl) {
@@ -454,14 +483,34 @@ function createLiffPage(liffId) {
       }
     }
 
-    async function openImage(shortId) {
+    function updateImageNavigation() {
+      imagePosition.textContent =
+        '第 ' + (imageDialogState.index + 1) + '／' +
+        imageDialogState.count + ' 張';
+      previousImage.disabled = imageDialogState.index <= 0;
+      nextImage.disabled =
+        imageDialogState.index >= imageDialogState.count - 1;
+    }
+
+    async function openImage(shortId, index = 0, count = 1) {
       try {
-        const response = await api('/api/liff/images/' + encodeURIComponent(shortId));
+        const response = await api(
+          '/api/liff/images/' + encodeURIComponent(shortId) + '/' + index
+        );
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
-        imagePreview.onload = () => URL.revokeObjectURL(url);
+        if (imageDialogState.objectUrl) {
+          URL.revokeObjectURL(imageDialogState.objectUrl);
+        }
+        imageDialogState.shortId = shortId;
+        imageDialogState.index = index;
+        imageDialogState.count = Math.max(1, Number(count) || 1);
+        imageDialogState.objectUrl = url;
         imagePreview.src = url;
-        imageDialog.showModal();
+        updateImageNavigation();
+        if (!imageDialog.open) {
+          imageDialog.showModal();
+        }
       } catch (error) {
         alert(error.message);
       }
@@ -483,6 +532,29 @@ function createLiffPage(liffId) {
     });
     document.getElementById('closeImage').addEventListener('click', () => {
       imageDialog.close();
+      imagePreview.removeAttribute('src');
+      if (imageDialogState.objectUrl) {
+        URL.revokeObjectURL(imageDialogState.objectUrl);
+        imageDialogState.objectUrl = '';
+      }
+    });
+    previousImage.addEventListener('click', () => {
+      if (imageDialogState.index > 0) {
+        openImage(
+          imageDialogState.shortId,
+          imageDialogState.index - 1,
+          imageDialogState.count
+        );
+      }
+    });
+    nextImage.addEventListener('click', () => {
+      if (imageDialogState.index < imageDialogState.count - 1) {
+        openImage(
+          imageDialogState.shortId,
+          imageDialogState.index + 1,
+          imageDialogState.count
+        );
+      }
     });
 
     (async () => {

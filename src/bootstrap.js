@@ -76,9 +76,33 @@ function createApplication() {
               Date.now() - HISTORY_RETENTION_MS,
               {
                 onRemove: async (record) => {
-                  if (record.sourceImagePath && imageStorage?.deleteImage) {
-                    await imageStorage.deleteImage(record.sourceImagePath);
+                  if (!imageStorage?.deleteImage) {
+                    return;
                   }
+                  const imagePaths = [];
+                  if (
+                    record.sourceImageSetId &&
+                    typeof repository.getImageSetReferences === 'function'
+                  ) {
+                    const references =
+                      await repository.getImageSetReferences(
+                        { type: 'group', id: config.liffGroupId },
+                        record.sourceImageSetId,
+                      );
+                    imagePaths.push(
+                      ...references
+                        .map((reference) => reference.storagePath)
+                        .filter(Boolean),
+                    );
+                  }
+                  if (imagePaths.length === 0 && record.sourceImagePath) {
+                    imagePaths.push(record.sourceImagePath);
+                  }
+                  await Promise.all(
+                    [...new Set(imagePaths)].map((path) =>
+                      imageStorage.deleteImage(path),
+                    ),
+                  );
                 },
               },
             )

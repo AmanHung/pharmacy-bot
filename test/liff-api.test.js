@@ -35,6 +35,7 @@ test('LIFF 紀錄不暴露群組 ID 或圖片儲存路徑', () => {
       createdAt: 1000,
       expiresAt: null,
       hasImage: true,
+      imageCount: 1,
       sourceUrl: null,
       convertedToSopAt: null,
       convertedToSopByName: null,
@@ -296,4 +297,118 @@ test('最近處理永久清除時同步刪除所屬圖片', async (context) => {
     deletedImagePath,
     'pharmacy_images/group/message-1',
   );
+});
+
+test('LIFF serves every image in an image set in LINE index order', async (context) => {
+  const imagePaths = [
+    'pharmacy_images/group/image-1',
+    'pharmacy_images/group/image-2',
+    'pharmacy_images/group/image-3',
+  ];
+  const router = createLiffRouter({
+    authorize: async () => ({
+      userId: 'U1',
+      displayName: '測試者',
+      groupId: 'G1',
+    }),
+    repository: {
+      async removeExpiredEducationRecords() {},
+      async listRecords() {
+        return [{
+          shortId: 'N-MULTI1',
+          category: 'notice',
+          content: '多圖公告',
+          createdAt: 1000,
+          sourceImageSetId: 'SET-1',
+          sourceImageCount: 3,
+        }];
+      },
+      async getRecordByShortId() {
+        return {
+          shortId: 'N-MULTI1',
+          sourceImageSetId: 'SET-1',
+          sourceImageCount: 3,
+        };
+      },
+      async getImageSetReferences(scope, imageSetId) {
+        assert.deepEqual(scope, { type: 'group', id: 'G1' });
+        assert.equal(imageSetId, 'SET-1');
+        return [
+          { imageSetIndex: 1, storagePath: imagePaths[0] },
+          { imageSetIndex: 2, storagePath: imagePaths[1] },
+          { imageSetIndex: 3, storagePath: imagePaths[2] },
+        ];
+      },
+    },
+    imageStorage: {
+      async readImage(path) {
+        return {
+          buffer: Buffer.from(path),
+          contentType: 'image/jpeg',
+        };
+      },
+    },
+  });
+  const server = await startRouter(router);
+  context.after(server.close);
+
+  const recordsResponse = await fetch(`${server.baseUrl}/api/liff/records`);
+  const recordsPayload = await recordsResponse.json();
+  assert.equal(recordsPayload.records[0].hasImage, true);
+  assert.equal(recordsPayload.records[0].imageCount, 3);
+
+  for (let index = 0; index < imagePaths.length; index += 1) {
+    const response = await fetch(
+      `${server.baseUrl}/api/liff/images/N-MULTI1/${index}`,
+    );
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), imagePaths[index]);
+  }
+  const missingResponse = await fetch(
+    `${server.baseUrl}/api/liff/images/N-MULTI1/3`,
+  );
+  assert.equal(missingResponse.status, 404);
+});
+
+test('history cleanup deletes every stored image in an image set', async (context) => {
+  const deletedImagePaths = [];
+  const router = createLiffRouter({
+    authorize: async () => ({
+      userId: 'U1',
+      displayName: '測試者',
+      groupId: 'G1',
+    }),
+    repository: {
+      async removeCompletedRecordsBefore(_scope, _cutoff, options) {
+        await options.onRemove({ sourceImageSetId: 'SET-DELETE' });
+        return 1;
+      },
+      async listCompletedRecords() {
+        return [];
+      },
+      async getImageSetReferences() {
+        return [
+          { storagePath: 'pharmacy_images/group/image-1' },
+          { storagePath: 'pharmacy_images/group/image-2' },
+          { storagePath: 'pharmacy_images/group/image-3' },
+        ];
+      },
+    },
+    imageStorage: {
+      async deleteImage(path) {
+        deletedImagePaths.push(path);
+      },
+    },
+  });
+  const server = await startRouter(router);
+  context.after(server.close);
+
+  const response = await fetch(`${server.baseUrl}/api/liff/history`);
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(deletedImagePaths.sort(), [
+    'pharmacy_images/group/image-1',
+    'pharmacy_images/group/image-2',
+    'pharmacy_images/group/image-3',
+  ]);
 });

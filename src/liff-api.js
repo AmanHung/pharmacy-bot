@@ -11,7 +11,16 @@ function stripNoticeAudienceTags(text) {
     .trim();
 }
 
-function serializeRecord(record, currentTime = Date.now()) {
+function serializeRecord(
+  record,
+  currentTime = Date.now(),
+  { imageCount = null } = {},
+) {
+  const resolvedImageCount =
+    imageCount === null
+      ? Number(record.sourceImageCount) ||
+        (record.sourceImagePath ? 1 : 0)
+      : imageCount;
   return {
     shortId: record.shortId,
     category: record.category,
@@ -23,18 +32,21 @@ function serializeRecord(record, currentTime = Date.now()) {
       record.category === 'handover' ? record.authorName || null : null,
     createdAt: record.createdAt,
     expiresAt: record.expiresAt || null,
-    hasImage: Boolean(
-      record.sourceImagePath,
-    ),
+    hasImage: resolvedImageCount > 0,
+    imageCount: resolvedImageCount,
     sourceUrl: record.sourceUrl || null,
     convertedToSopAt: record.convertedToSopAt || null,
     convertedToSopByName: record.convertedToSopByName || null,
   };
 }
 
-function serializeHistoryRecord(record, currentTime = Date.now()) {
+function serializeHistoryRecord(
+  record,
+  currentTime = Date.now(),
+  options = {},
+) {
   return {
-    ...serializeRecord(record, currentTime),
+    ...serializeRecord(record, currentTime, options),
     status: 'completed',
     completedAt: record.completedAt,
     completedByName: record.completedByName || '群組成員',
@@ -53,10 +65,43 @@ function createLiffRouter({
     return { type: 'group', id: request.liffMember.groupId };
   }
 
-  async function deleteRecordImage(record) {
-    if (record.sourceImagePath && imageStorage?.deleteImage) {
-      await imageStorage.deleteImage(record.sourceImagePath);
+  async function getRecordImagePaths(scope, record) {
+    const paths = [];
+    if (
+      record.sourceImageSetId &&
+      typeof repository.getImageSetReferences === 'function'
+    ) {
+      const references = await repository.getImageSetReferences(
+        scope,
+        record.sourceImageSetId,
+      );
+      for (const reference of references) {
+        if (reference.storagePath) {
+          paths.push(reference.storagePath);
+        }
+      }
     }
+    if (paths.length === 0 && record.sourceImagePath) {
+      paths.push(record.sourceImagePath);
+    }
+    return [...new Set(paths)];
+  }
+
+  async function serializeRecordWithImages(scope, record, currentTime) {
+    const imagePaths = await getRecordImagePaths(scope, record);
+    const imageCount = Math.max(
+      imagePaths.length,
+      Number(record.sourceImageCount) || 0,
+    );
+    return serializeRecord(record, currentTime, { imageCount });
+  }
+
+  async function deleteRecordImage(scope, record) {
+    if (!imageStorage?.deleteImage) {
+      return;
+    }
+    const paths = await getRecordImagePaths(scope, record);
+    await Promise.all(paths.map((path) => imageStorage.deleteImage(path)));
   }
 
   router.use(async (request, response, next) => {
@@ -74,7 +119,7 @@ function createLiffRouter({
       const currentTime = Date.now();
       if (typeof repository.removeExpiredEducationRecords === 'function') {
         await repository.removeExpiredEducationRecords(scope, currentTime, {
-          onRemove: deleteRecordImage,
+          onRemove: (record) => deleteRecordImage(scope, record),
         });
       }
       const records = await repository.listRecords(scope, {
@@ -82,10 +127,15 @@ function createLiffRouter({
         limit: LIFF_RECORD_LIMIT,
       });
       response.set('cache-control', 'private, no-store, max-age=0');
+      const serializedRecords = await Promise.all(
+        records.map((record) =>
+          serializeRecordWithImages(scope, record, currentTime),
+        ),
+      );
       response.json({
         displayName: request.liffMember.displayName || '群組成員',
         sopConversionEnabled: Boolean(sopPublisher),
-        records: records.map((record) => serializeRecord(record, currentTime)),
+        records: serializedRecords,
       });
     } catch (error) {
       next(error);
@@ -99,7 +149,7 @@ function createLiffRouter({
       const cutoff = currentTime - HISTORY_RETENTION_MS;
       if (typeof repository.removeCompletedRecordsBefore === 'function') {
         await repository.removeCompletedRecordsBefore(scope, cutoff, {
-          onRemove: deleteRecordImage,
+          onRemove: (record) => deleteRecordImage(scope, record),
         });
       }
       const records = await repository.listCompletedRecords(scope, {
@@ -107,11 +157,22 @@ function createLiffRouter({
         limit: LIFF_RECORD_LIMIT,
       });
       response.set('cache-control', 'private, no-store, max-age=0');
-      response.json({
-        records: records.map((record) =>
-          serializeHistoryRecord(record, currentTime),
-        ),
-      });
+      const serializedRecords = await Promise.all(
+        records.map(async (record) => {
+          const serialized = await serializeRecordWithImages(
+            scope,
+            record,
+            currentTime,
+          );
+          return {
+            ...serialized,
+            status: 'completed',
+            completedAt: record.completedAt,
+            completedByName: record.completedByName || '群組成員',
+          };
+        }),
+      );
+      response.json({ records: serializedRecords });
     } catch (error) {
       next(error);
     }
@@ -206,8 +267,9 @@ function createLiffRouter({
         }
 
         let image = null;
-        if (record.sourceImagePath) {
-          image = await imageStorage?.readImage(record.sourceImagePath);
+        const imagePaths = await getRecordImagePaths(scope, record);
+        if (imagePaths.length > 0) {
+          image = await imageStorage?.readImage(imagePaths[0]);
           if (!image) {
             response.status(409).json({
               error: '公告原圖已不存在，請重新附圖後再轉為 SOP。',
@@ -248,7 +310,7 @@ function createLiffRouter({
     },
   );
 
-  router.get('/images/:shortId', async (request, response, next) => {
+  async function serveRecordImage(request, response, next) {
     try {
       const scope = getScope(request);
       if (!imageStorage) {
@@ -259,11 +321,21 @@ function createLiffRouter({
         scope,
         request.params.shortId,
       );
-      if (!record?.sourceImagePath) {
+      if (!record) {
         response.status(404).json({ error: '找不到原始圖片。' });
         return;
       }
-      const image = await imageStorage.readImage(record.sourceImagePath);
+      const imagePaths = await getRecordImagePaths(scope, record);
+      const imageIndex = Number.parseInt(request.params.index || '0', 10);
+      if (
+        !Number.isInteger(imageIndex) ||
+        imageIndex < 0 ||
+        imageIndex >= imagePaths.length
+      ) {
+        response.status(404).json({ error: '找不到原始圖片。' });
+        return;
+      }
+      const image = await imageStorage.readImage(imagePaths[imageIndex]);
       if (!image) {
         response.status(404).json({ error: '原始圖片已不存在。' });
         return;
@@ -279,7 +351,10 @@ function createLiffRouter({
     } catch (error) {
       next(error);
     }
-  });
+  }
+
+  router.get('/images/:shortId', serveRecordImage);
+  router.get('/images/:shortId/:index', serveRecordImage);
 
   router.use((error, _request, response, _next) => {
     if (error instanceof LiffAccessError) {

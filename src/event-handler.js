@@ -168,10 +168,29 @@ function createEventHandler({
     );
   }
 
-  async function deleteRecordImage(record) {
-    if (record.sourceImagePath && imageStorage?.deleteImage) {
-      await imageStorage.deleteImage(record.sourceImagePath);
+  async function deleteRecordImage(scope, record) {
+    if (!imageStorage?.deleteImage) {
+      return;
     }
+    const imagePaths = [];
+    if (
+      record.sourceImageSetId &&
+      typeof repository.getImageSetReferences === 'function'
+    ) {
+      const references = await repository.getImageSetReferences(
+        scope,
+        record.sourceImageSetId,
+      );
+      imagePaths.push(
+        ...references.map((reference) => reference.storagePath).filter(Boolean),
+      );
+    }
+    if (imagePaths.length === 0 && record.sourceImagePath) {
+      imagePaths.push(record.sourceImagePath);
+    }
+    await Promise.all(
+      [...new Set(imagePaths)].map((path) => imageStorage.deleteImage(path)),
+    );
   }
 
   async function completeRecord(
@@ -214,7 +233,7 @@ function createEventHandler({
       typeof repository.removeExpiredEducationRecords === 'function'
     ) {
       await repository.removeExpiredEducationRecords(scope, currentTime, {
-        onRemove: deleteRecordImage,
+        onRemove: (record) => deleteRecordImage(scope, record),
       });
     }
     const filters = {
@@ -317,6 +336,13 @@ function createEventHandler({
           quoteToken: event.message.quoteToken,
           authorUserId: event.source?.userId || null,
           createdAt: event.timestamp || now(),
+          ...(event.message.imageSet?.id
+            ? {
+                imageSetId: event.message.imageSet.id,
+                imageSetIndex: event.message.imageSet.index ?? null,
+                imageSetTotal: event.message.imageSet.total ?? null,
+              }
+            : {}),
           ...(storedImage
             ? {
                 storagePath: storedImage.storagePath,
@@ -450,6 +476,13 @@ function createEventHandler({
               sourceReferenceMessageId: quotedMessageId,
               sourceReferenceType: sourceReference.type || 'text',
               sourceQuoteToken: sourceReference.quoteToken,
+              ...(sourceReference.imageSetId
+                ? {
+                    sourceImageSetId: sourceReference.imageSetId,
+                    sourceImageCount:
+                      Number(sourceReference.imageSetTotal) || 1,
+                  }
+                : {}),
               ...(sourceReference.url ? { sourceUrl: sourceReference.url } : {}),
               ...(sourceReference.storagePath
                 ? {
