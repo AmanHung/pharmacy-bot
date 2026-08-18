@@ -255,11 +255,79 @@ test('LIFF 公告可連同私有圖片轉入新人導航系統 SOP', async (cont
   assert.equal(response.status, 200);
   assert.equal(published.actorName, '王藥師');
   assert.equal(published.record.content, '測試公告');
-  assert.equal(published.image.buffer.toString(), 'image');
+  assert.equal(published.images.length, 1);
+  assert.equal(published.images[0].buffer.toString(), 'image');
   assert.equal(marked.details.handbookSopId, 'line-notice-test');
   assert.equal(marked.details.convertedToSopByUserId, 'U1');
   assert.equal(payload.sopId, 'line-notice-test');
   assert.equal(payload.record.convertedToSopByName, '王藥師');
+});
+
+test('LIFF 公告轉 SOP 時會依順序帶入整組圖片', async (context) => {
+  let published;
+  const imagePaths = [
+    'pharmacy_images/group/image-1',
+    'pharmacy_images/group/image-2',
+    'pharmacy_images/group/image-3',
+  ];
+  const router = createLiffRouter({
+    authorize: async () => ({
+      userId: 'U1',
+      displayName: '王藥師',
+      groupId: 'G1',
+    }),
+    repository: {
+      async getRecordByShortId() {
+        return {
+          shortId: 'N-MULTI1',
+          category: 'notice',
+          content: '多圖公告',
+          sourceImageSetId: 'SET-1',
+        };
+      },
+      async getImageSetReferences() {
+        return imagePaths.map((storagePath, index) => ({
+          imageSetIndex: index + 1,
+          storagePath,
+        }));
+      },
+      async markRecordConvertedToSop(_scope, shortId, details) {
+        return {
+          shortId,
+          category: 'notice',
+          content: '多圖公告',
+          convertedToSopAt: details.convertedToSopAt,
+        };
+      },
+    },
+    imageStorage: {
+      async readImage(path) {
+        return {
+          buffer: Buffer.from(path),
+          contentType: 'image/jpeg',
+        };
+      },
+    },
+    sopPublisher: {
+      async publishNotice(input) {
+        published = input;
+        return { id: 'line-notice-multi', alreadyExists: false };
+      },
+    },
+  });
+  const server = await startRouter(router);
+  context.after(server.close);
+
+  const response = await fetch(
+    `${server.baseUrl}/api/liff/records/N-MULTI1/convert-to-sop`,
+    { method: 'POST' },
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(
+    published.images.map((image) => image.buffer.toString()),
+    imagePaths,
+  );
 });
 
 test('最近處理永久清除時同步刪除所屬圖片', async (context) => {

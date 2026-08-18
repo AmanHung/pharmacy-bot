@@ -95,3 +95,79 @@ test('公告文字與圖片會建立為 SOP 文件', async () => {
   assert.equal(created.updatedByName, 'LINE：王藥師');
   assert.equal(created.updatedByUid, 'line-import');
 });
+
+test('多張公告圖片會全部上傳並依序放入 SOP', async () => {
+  let created;
+  const uploadBodies = [];
+  const firestore = {
+    collection() {
+      return {
+        doc() {
+          return {
+            async get() {
+              return { exists: false };
+            },
+            async create(data) {
+              created = data;
+            },
+          };
+        },
+      };
+    },
+  };
+  const publisher = createHandbookSopPublisher({
+    firestore,
+    gasApiUrl: 'https://example.test/upload',
+    fetchImpl: async (_url, options) => {
+      const body = JSON.parse(options.body);
+      uploadBodies.push(body);
+      return {
+        ok: true,
+        async json() {
+          return {
+            status: 'success',
+            url: `https://drive.google.com/file/d/IMAGE-${uploadBodies.length}/view`,
+          };
+        },
+      };
+    },
+  });
+
+  const result = await publisher.publishNotice({
+    groupId: 'G1',
+    actorName: '王藥師',
+    record: {
+      shortId: 'N-MULTI1',
+      category: 'notice',
+      content: '多圖公告',
+    },
+    images: [
+      { buffer: Buffer.from('image-1'), contentType: 'image/jpeg' },
+      { buffer: Buffer.from('image-2'), contentType: 'image/png' },
+      { buffer: Buffer.from('image-3'), contentType: 'image/jpeg' },
+    ],
+  });
+
+  assert.equal(uploadBodies.length, 3);
+  assert.deepEqual(
+    uploadBodies.map((body) => body.fileName),
+    [
+      'LINE公告-N-MULTI1-1.jpg',
+      'LINE公告-N-MULTI1-2.png',
+      'LINE公告-N-MULTI1-3.jpg',
+    ],
+  );
+  assert.match(
+    created.content,
+    /!\[公告圖片 1\]\(https:\/\/drive\.google\.com\/file\/d\/IMAGE-1\/view\)/u,
+  );
+  assert.match(
+    created.content,
+    /!\[公告圖片 2\]\(https:\/\/drive\.google\.com\/file\/d\/IMAGE-2\/view\)/u,
+  );
+  assert.equal(
+    created.attachmentUrl,
+    'https://drive.google.com/file/d/IMAGE-3/view',
+  );
+  assert.equal(result.attachmentUrl, created.attachmentUrl);
+});

@@ -38,6 +38,8 @@ async function uploadImageToDrive({
   gasApiUrl,
   image,
   shortId,
+  imageIndex = 0,
+  imageCount = 1,
   fetchImpl,
 }) {
   if (!image) {
@@ -49,12 +51,13 @@ async function uploadImageToDrive({
 
   const mimeType = image.contentType || 'image/jpeg';
   const extension = mimeType === 'image/png' ? 'png' : 'jpg';
+  const imageSuffix = imageCount > 1 ? `-${imageIndex + 1}` : '';
   const response = await fetchImpl(gasApiUrl, {
     method: 'POST',
     headers: { 'content-type': 'text/plain' },
     body: JSON.stringify({
       action: 'upload_to_drive',
-      fileName: `LINE公告-${shortId}.${extension}`,
+      fileName: `LINE公告-${shortId}${imageSuffix}.${extension}`,
       mimeType,
       base64: `data:${mimeType};base64,${image.buffer.toString('base64')}`,
     }),
@@ -81,7 +84,13 @@ function createHandbookSopPublisher({
   }
 
   return {
-    async publishNotice({ groupId, record, actorName, image = null }) {
+    async publishNotice({
+      groupId,
+      record,
+      actorName,
+      image = null,
+      images = null,
+    }) {
       if (record.category !== 'notice') {
         throw new Error('只有公告可以轉為 SOP。');
       }
@@ -94,22 +103,42 @@ function createHandbookSopPublisher({
         return { id: sopId, alreadyExists: true };
       }
 
-      const attachmentUrl = await uploadImageToDrive({
-        gasApiUrl,
-        image,
-        shortId: record.shortId,
-        fetchImpl,
-      });
+      const noticeImages = Array.isArray(images)
+        ? images.filter(Boolean)
+        : image
+          ? [image]
+          : [];
+      const uploadedImageUrls = [];
+      for (let imageIndex = 0; imageIndex < noticeImages.length; imageIndex += 1) {
+        uploadedImageUrls.push(
+          await uploadImageToDrive({
+            gasApiUrl,
+            image: noticeImages[imageIndex],
+            shortId: record.shortId,
+            imageIndex,
+            imageCount: noticeImages.length,
+            fetchImpl,
+          }),
+        );
+      }
+      const attachmentUrl = uploadedImageUrls.at(-1) || '';
       const editorName = `LINE：${actorName || '群組成員'}`;
       const sourceLink = record.sourceUrl
-        ? `\n\n[開啟原始連結](${record.sourceUrl})`
+        ? `[開啟原始連結](${record.sourceUrl})`
         : '';
+      const inlineImages = uploadedImageUrls
+        .slice(0, -1)
+        .map((url, index) => `![公告圖片 ${index + 1}](${url})`)
+        .join('\n\n');
+      const content = [sopContent, sourceLink, inlineImages]
+        .filter(Boolean)
+        .join('\n\n');
 
       try {
         await sopRef.create({
           title: createSopTitle(sopContent),
           category: '行政流程',
-          content: `${sopContent}${sourceLink}`.trim(),
+          content,
           attachmentUrl,
           keywords: ['LINE', '公告'],
           description: '由 LINE 資訊中心公告轉入',
