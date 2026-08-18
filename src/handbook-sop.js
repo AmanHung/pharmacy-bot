@@ -90,6 +90,7 @@ function createHandbookSopPublisher({
       actorName,
       image = null,
       images = null,
+      replaceExisting = false,
     }) {
       if (record.category !== 'notice') {
         throw new Error('只有公告可以轉為 SOP。');
@@ -99,7 +100,7 @@ function createHandbookSopPublisher({
       const sopContent = removeAllMention(record.content);
       const sopRef = firestore.collection('sop_articles').doc(sopId);
       const existing = await sopRef.get();
-      if (existing.exists) {
+      if (existing.exists && !replaceExisting) {
         return { id: sopId, alreadyExists: true };
       }
 
@@ -134,24 +135,38 @@ function createHandbookSopPublisher({
         .filter(Boolean)
         .join('\n\n');
 
+      const sopData = {
+        title: createSopTitle(sopContent),
+        category: '行政流程',
+        content,
+        attachmentUrl,
+        keywords: ['LINE', '公告'],
+        description: '由 LINE 資訊中心公告轉入',
+        sourceSystem: 'pharmacy-bot',
+        sourceRecordId: record.shortId,
+        sourceCreatedAt: record.createdAt
+          ? Timestamp.fromMillis(record.createdAt)
+          : null,
+        updatedBy: editorName,
+        updatedByName: editorName,
+        updatedByUid: 'line-import',
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+
+      if (existing.exists) {
+        await sopRef.set(sopData, { merge: true });
+        return {
+          id: sopId,
+          alreadyExists: false,
+          replaced: true,
+          attachmentUrl,
+        };
+      }
+
       try {
         await sopRef.create({
-          title: createSopTitle(sopContent),
-          category: '行政流程',
-          content,
-          attachmentUrl,
-          keywords: ['LINE', '公告'],
-          description: '由 LINE 資訊中心公告轉入',
-          sourceSystem: 'pharmacy-bot',
-          sourceRecordId: record.shortId,
-          sourceCreatedAt: record.createdAt
-            ? Timestamp.fromMillis(record.createdAt)
-            : null,
-          updatedBy: editorName,
-          updatedByName: editorName,
-          updatedByUid: 'line-import',
+          ...sopData,
           createdAt: FieldValue.serverTimestamp(),
-          updatedAt: FieldValue.serverTimestamp(),
         });
       } catch (error) {
         if (error?.code === 6 || error?.code === 'already-exists') {
@@ -160,7 +175,12 @@ function createHandbookSopPublisher({
         throw error;
       }
 
-      return { id: sopId, alreadyExists: false, attachmentUrl };
+      return {
+        id: sopId,
+        alreadyExists: false,
+        replaced: false,
+        attachmentUrl,
+      };
     },
   };
 }

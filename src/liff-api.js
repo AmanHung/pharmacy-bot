@@ -256,7 +256,8 @@ function createLiffRouter({
           response.status(400).json({ error: '只有公告可以轉為 SOP。' });
           return;
         }
-        if (record.handbookSopId) {
+        const replaceExisting = request.query.replace === '1';
+        if (record.handbookSopId && !replaceExisting) {
           response.json({
             ok: true,
             sopId: record.handbookSopId,
@@ -284,6 +285,7 @@ function createLiffRouter({
           record,
           actorName: request.liffMember.displayName || '群組成員',
           images,
+          replaceExisting,
         });
         const convertedAt = Date.now();
         const updatedRecord = await repository.markRecordConvertedToSop(
@@ -303,6 +305,7 @@ function createLiffRouter({
           ok: true,
           sopId: result.id,
           alreadyExists: result.alreadyExists,
+          replaced: Boolean(result.replaced),
           record: serializeRecord(updatedRecord || record, convertedAt),
         });
       } catch (error) {

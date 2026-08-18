@@ -334,6 +334,13 @@ function createLiffPage(liffId) {
               '｜' +
               formatDate(record.convertedToSopAt);
             actions.append(converted);
+            actions.append(
+              button(
+                '重新轉 SOP',
+                'convert',
+                () => convertRecordToSop(record, true)
+              )
+            );
           } else {
             actions.append(
               button(
@@ -408,9 +415,11 @@ function createLiffPage(liffId) {
       completeRecord(record.shortId);
     }
 
-    async function convertRecordToSop(record) {
+    async function convertRecordToSop(record, replaceExisting = false) {
       const confirmed = window.confirm(
-        '確定要把這筆公告的文字與圖片轉入新人導航系統 SOP 文件區嗎？'
+        replaceExisting
+          ? '確定要用這筆公告目前的文字與全部圖片更新原有 SOP 嗎？原 SOP 的內容會被取代。'
+          : '確定要把這筆公告的文字與圖片轉入新人導航系統 SOP 文件區嗎？'
       );
       if (!confirmed) {
         return;
@@ -420,7 +429,8 @@ function createLiffPage(liffId) {
         const response = await api(
           '/api/liff/records/' +
             encodeURIComponent(record.shortId) +
-            '/convert-to-sop', {
+            '/convert-to-sop' +
+            (replaceExisting ? '?replace=1' : ''), {
             method: 'POST'
           });
         const payload = await response.json();
@@ -429,7 +439,9 @@ function createLiffPage(liffId) {
         );
         render();
         alert(
-          payload.alreadyExists
+          payload.replaced
+            ? '已用公告目前的文字與全部圖片更新原有 SOP。'
+            : payload.alreadyExists
             ? '這筆公告先前已轉為 SOP。'
             : '已轉入新人導航系統的 SOP 文件區。'
         );
