@@ -171,3 +171,69 @@ test('多張公告圖片會全部上傳並依序放入 SOP', async () => {
   );
   assert.equal(result.attachmentUrl, created.attachmentUrl);
 });
+
+test('重新轉 SOP 時會沿用文件 ID 並覆寫文字與全部圖片', async () => {
+  let updated;
+  let createCalled = false;
+  let uploadCount = 0;
+  const firestore = {
+    collection() {
+      return {
+        doc() {
+          return {
+            async get() {
+              return { exists: true };
+            },
+            async create() {
+              createCalled = true;
+            },
+            async set(data, options) {
+              updated = { data, options };
+            },
+          };
+        },
+      };
+    },
+  };
+  const publisher = createHandbookSopPublisher({
+    firestore,
+    gasApiUrl: 'https://example.test/upload',
+    fetchImpl: async () => {
+      uploadCount += 1;
+      return {
+        ok: true,
+        async json() {
+          return {
+            status: 'success',
+            url: `https://drive.google.com/file/d/REPLACED-${uploadCount}/view`,
+          };
+        },
+      };
+    },
+  });
+
+  const result = await publisher.publishNotice({
+    groupId: 'G1',
+    actorName: '洪主任',
+    replaceExisting: true,
+    record: {
+      shortId: 'N-REPLACE1',
+      category: 'notice',
+      content: '@All 更新後公告',
+    },
+    images: [
+      { buffer: Buffer.from('image-1'), contentType: 'image/jpeg' },
+      { buffer: Buffer.from('image-2'), contentType: 'image/jpeg' },
+    ],
+  });
+
+  assert.equal(createCalled, false);
+  assert.equal(uploadCount, 2);
+  assert.deepEqual(updated.options, { merge: true });
+  assert.match(updated.data.content, /^更新後公告/u);
+  assert.match(updated.data.content, /REPLACED-1/u);
+  assert.match(updated.data.attachmentUrl, /REPLACED-2/u);
+  assert.equal(updated.data.updatedByName, 'LINE：洪主任');
+  assert.equal(result.alreadyExists, false);
+  assert.equal(result.replaced, true);
+});

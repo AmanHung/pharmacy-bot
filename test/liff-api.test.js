@@ -330,6 +330,69 @@ test('LIFF 公告轉 SOP 時會依順序帶入整組圖片', async (context) => 
   );
 });
 
+test('已轉公告可以要求覆寫原有 SOP', async (context) => {
+  let published;
+  const router = createLiffRouter({
+    authorize: async () => ({
+      userId: 'U1',
+      displayName: '洪主任',
+      groupId: 'G1',
+    }),
+    repository: {
+      async getRecordByShortId() {
+        return {
+          shortId: 'N-REPLACE1',
+          category: 'notice',
+          content: '更新後公告',
+          handbookSopId: 'line-notice-existing',
+          sourceImagePath: 'pharmacy_images/group/replacement',
+        };
+      },
+      async markRecordConvertedToSop(_scope, shortId, details) {
+        return {
+          shortId,
+          category: 'notice',
+          content: '更新後公告',
+          convertedToSopAt: details.convertedToSopAt,
+          convertedToSopByName: details.convertedToSopByName,
+        };
+      },
+    },
+    imageStorage: {
+      async readImage() {
+        return {
+          buffer: Buffer.from('replacement'),
+          contentType: 'image/jpeg',
+        };
+      },
+    },
+    sopPublisher: {
+      async publishNotice(input) {
+        published = input;
+        return {
+          id: 'line-notice-existing',
+          alreadyExists: false,
+          replaced: true,
+        };
+      },
+    },
+  });
+  const server = await startRouter(router);
+  context.after(server.close);
+
+  const response = await fetch(
+    `${server.baseUrl}/api/liff/records/N-REPLACE1/convert-to-sop?replace=1`,
+    { method: 'POST' },
+  );
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(published.replaceExisting, true);
+  assert.equal(published.images.length, 1);
+  assert.equal(payload.replaced, true);
+  assert.equal(payload.alreadyExists, false);
+});
+
 test('最近處理永久清除時同步刪除所屬圖片', async (context) => {
   let deletedImagePath;
   const router = createLiffRouter({
