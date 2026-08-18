@@ -266,23 +266,24 @@ function createLiffRouter({
           return;
         }
 
-        let image = null;
+        const images = [];
         const imagePaths = await getRecordImagePaths(scope, record);
-        if (imagePaths.length > 0) {
-          image = await imageStorage?.readImage(imagePaths[0]);
+        for (const imagePath of imagePaths) {
+          const image = await imageStorage?.readImage(imagePath);
           if (!image) {
             response.status(409).json({
               error: '公告原圖已不存在，請重新附圖後再轉為 SOP。',
             });
             return;
           }
+          images.push(image);
         }
 
         const result = await sopPublisher.publishNotice({
           groupId: request.liffMember.groupId,
           record,
           actorName: request.liffMember.displayName || '群組成員',
-          image,
+          images,
         });
         const convertedAt = Date.now();
         const updatedRecord = await repository.markRecordConvertedToSop(
