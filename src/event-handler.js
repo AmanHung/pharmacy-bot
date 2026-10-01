@@ -10,6 +10,7 @@ const {
 } = require('./messages');
 const { parsePostback } = require('./postbacks');
 const { getChatScope, isScopeAllowed } = require('./scope');
+const { shouldPreserveRecordImages } = require('./image-storage');
 
 const RECENT_QUERY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const QUERY_RESULT_LIMIT = 100;
@@ -169,7 +170,10 @@ function createEventHandler({
   }
 
   async function deleteRecordImage(scope, record) {
-    if (!imageStorage?.deleteImage) {
+    if (
+      !imageStorage?.deleteImage ||
+      shouldPreserveRecordImages(record)
+    ) {
       return;
     }
     const imagePaths = [];

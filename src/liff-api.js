@@ -1,5 +1,6 @@
 const express = require('express');
 const { LiffAccessError } = require('./liff-auth');
+const { shouldPreserveRecordImages } = require('./image-storage');
 
 const LIFF_RECORD_LIMIT = 100;
 const HISTORY_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
@@ -97,7 +98,10 @@ function createLiffRouter({
   }
 
   async function deleteRecordImage(scope, record) {
-    if (!imageStorage?.deleteImage) {
+    if (
+      !imageStorage?.deleteImage ||
+      shouldPreserveRecordImages(record)
+    ) {
       return;
     }
     const paths = await getRecordImagePaths(scope, record);
@@ -290,6 +294,7 @@ function createLiffRouter({
           record.shortId,
           {
             handbookSopId: result.id,
+            imageRetention: 'permanent',
             convertedToSopAt: convertedAt,
             convertedToSopByUserId: request.liffMember.userId,
             convertedToSopByName:

@@ -1,5 +1,6 @@
 const { toFirebaseScopeKey } = require('./scope');
 const { createSearchTerms, normalizeSearchText } = require('./search');
+const { shouldPreserveRecordImages } = require('./image-storage');
 
 const MAX_QUERY_CANDIDATES = 100;
 
@@ -232,6 +233,7 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
 
     const updates = {
       handbookSopId: conversion.handbookSopId,
+      imageRetention: conversion.imageRetention || 'permanent',
       convertedToSopAt: conversion.convertedToSopAt,
       convertedToSopByUserId: conversion.convertedToSopByUserId,
       convertedToSopByName: conversion.convertedToSopByName,
@@ -370,7 +372,8 @@ function createRecordRepository(database, { drugAliases = [] } = {}) {
       if (
         record.status === 'completed' &&
         record.completedAt &&
-        record.completedAt < cutoff
+        record.completedAt < cutoff &&
+        !shouldPreserveRecordImages(record)
       ) {
         updates[childSnapshot.key] = null;
         removedRecords.push(record);

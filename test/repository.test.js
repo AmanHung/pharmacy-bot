@@ -483,6 +483,53 @@ test('最近處理紀錄可恢復並清除超過一個月的資料', async () =>
   assert.deepEqual(permanentlyRemoved, ['N-EXPIRED']);
 });
 
+test('已轉入 SOP 的公告與圖片不會被一個月歷史清除移除', async () => {
+  const records = {
+    ordinary: {
+      shortId: 'H-EXPIRED',
+      category: 'handover',
+      status: 'completed',
+      completedAt: 500,
+    },
+    permanentNotice: {
+      shortId: 'N-PERM01',
+      category: 'notice',
+      status: 'completed',
+      completedAt: 500,
+      handbookSopId: 'line-notice-test',
+      imageRetention: 'permanent',
+      sourceImagePath: 'pharmacy_images/group/message-1',
+    },
+  };
+  let removed;
+  const reference = {
+    async once() {
+      return {
+        forEach(callback) {
+          for (const [key, record] of Object.entries(records)) {
+            callback({ key, val: () => record });
+          }
+        },
+      };
+    },
+    async update(updates) {
+      removed = updates;
+    },
+  };
+  const repository = createRecordRepository({ ref: () => reference });
+  const removedRecords = [];
+
+  const count = await repository.removeCompletedRecordsBefore(
+    { type: 'group', id: 'G1' },
+    1000,
+    { onRemove: (record) => removedRecords.push(record.shortId) },
+  );
+
+  assert.equal(count, 1);
+  assert.deepEqual(removed, { ordinary: null });
+  assert.deepEqual(removedRecords, ['H-EXPIRED']);
+});
+
 test('expired education records are removed from the scope', async () => {
   let removedRecords;
   const snapshot = {

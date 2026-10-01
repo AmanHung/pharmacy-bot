@@ -257,6 +257,7 @@ test('LIFF 公告可連同私有圖片轉入新人導航系統 SOP', async (cont
   assert.equal(published.record.content, '測試公告');
   assert.equal(published.image.buffer.toString(), 'image');
   assert.equal(marked.details.handbookSopId, 'line-notice-test');
+  assert.equal(marked.details.imageRetention, 'permanent');
   assert.equal(marked.details.convertedToSopByUserId, 'U1');
   assert.equal(payload.sopId, 'line-notice-test');
   assert.equal(payload.record.convertedToSopByName, '王藥師');
@@ -297,6 +298,42 @@ test('最近處理永久清除時同步刪除所屬圖片', async (context) => {
     deletedImagePath,
     'pharmacy_images/group/message-1',
   );
+});
+
+test('已轉入 SOP 的公告圖片不會被歷史清除流程刪除', async (context) => {
+  let deleteCount = 0;
+  const router = createLiffRouter({
+    authorize: async () => ({
+      userId: 'U1',
+      displayName: '王藥師',
+      groupId: 'G1',
+    }),
+    repository: {
+      async removeCompletedRecordsBefore(_scope, _cutoff, options) {
+        await options.onRemove({
+          category: 'notice',
+          handbookSopId: 'line-notice-test',
+          sourceImagePath: 'pharmacy_images/group/message-1',
+        });
+        return 0;
+      },
+      async listCompletedRecords() {
+        return [];
+      },
+    },
+    imageStorage: {
+      async deleteImage() {
+        deleteCount += 1;
+      },
+    },
+  });
+  const server = await startRouter(router);
+  context.after(server.close);
+
+  const response = await fetch(`${server.baseUrl}/api/liff/history`);
+
+  assert.equal(response.status, 200);
+  assert.equal(deleteCount, 0);
 });
 
 test('LIFF serves every image in an image set in LINE index order', async (context) => {

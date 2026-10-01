@@ -4,6 +4,7 @@ const { Readable } = require('node:stream');
 const {
   createImageStorage,
   readableToBuffer,
+  shouldPreserveRecordImages,
 } = require('../src/image-storage');
 
 test('將 LINE 圖片串流轉為 Buffer', async () => {
@@ -100,4 +101,22 @@ test('圖片只在紀錄永久清除時依儲存路徑刪除', async () => {
   assert.equal(removed, true);
   assert.equal(rejected, false);
   assert.equal(removedPath, 'pharmacy_images/group1/message-1');
+});
+
+test('已轉公告或標記永久保留的圖片不應自動清除', () => {
+  assert.equal(
+    shouldPreserveRecordImages({
+      category: 'notice',
+      handbookSopId: 'line-notice-test',
+    }),
+    true,
+  );
+  assert.equal(
+    shouldPreserveRecordImages({ imageRetention: 'permanent' }),
+    true,
+  );
+  assert.equal(
+    shouldPreserveRecordImages({ category: 'notice' }),
+    false,
+  );
 });

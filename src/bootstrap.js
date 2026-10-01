@@ -8,7 +8,10 @@ const {
   createHandbookFirestore,
 } = require('./firebase');
 const { createHandbookSopPublisher } = require('./handbook-sop');
-const { createImageStorage } = require('./image-storage');
+const {
+  createImageStorage,
+  shouldPreserveRecordImages,
+} = require('./image-storage');
 const {
   createLiffRouter,
   HISTORY_RETENTION_MS,
@@ -76,7 +79,10 @@ function createApplication() {
               Date.now() - HISTORY_RETENTION_MS,
               {
                 onRemove: async (record) => {
-                  if (!imageStorage?.deleteImage) {
+                  if (
+                    !imageStorage?.deleteImage ||
+                    shouldPreserveRecordImages(record)
+                  ) {
                     return;
                   }
                   const imagePaths = [];

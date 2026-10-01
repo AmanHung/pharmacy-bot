@@ -3,6 +3,15 @@ const { toFirebaseScopeKey } = require('./scope');
 const DEFAULT_IMAGE_CONTENT_TYPE = 'image/jpeg';
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
 
+function shouldPreserveRecordImages(record) {
+  return Boolean(
+    record &&
+      (record.imageRetention === 'permanent' ||
+        (record.category === 'notice' &&
+          (record.handbookSopId || record.convertedToSopAt))),
+  );
+}
+
 async function readableToBuffer(readable) {
   const chunks = [];
   for await (const chunk of readable) {
@@ -74,4 +83,5 @@ module.exports = {
   createImageStorage,
   readableToBuffer,
   MAX_IMAGE_BYTES,
+  shouldPreserveRecordImages,
 };
