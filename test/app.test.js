@@ -174,6 +174,7 @@ test('LIFF 資訊中心頁面可載入且未設定 API 時安全拒絕', async (
   assert.match(page, /移至最近處理/);
   assert.match(page, /window\.confirm/);
   assert.match(page, /轉 SOP/);
+  assert.match(page, /重新轉 SOP/);
   assert.match(page, /convert-to-sop/);
   assert.equal(
     pageResponse.headers.get('cache-control'),
