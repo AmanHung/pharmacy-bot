@@ -40,7 +40,7 @@ function createRetryKey(groupId, dateKey) {
 
 function formatDailySummary(records, currentTime, options = {}) {
   if (records.length === 0) {
-    return '今日沒有未處理交班事項。';
+    return null;
   }
 
   return formatQueryResult(
@@ -79,11 +79,11 @@ function buildDailyMessages(
     currentTime,
     options,
   );
-  const messages = [
+  const messages = handoverMessage ? [
     typeof handoverMessage === 'string'
       ? { type: 'text', text: handoverMessage }
       : handoverMessage,
-  ];
+  ] : [];
   const educationMessage = formatTodayEducationSummary(
     educationRecords,
     currentTime,
@@ -141,6 +141,15 @@ function createDailySummarySender({
       currentTime,
       { liffId, groupId },
     );
+
+    if (messages.length === 0) {
+      return {
+        status: 'skipped',
+        date: dateKey,
+        recordCount: 0,
+        educationCount: 0,
+      };
+    }
 
     await client.pushMessage(
       {

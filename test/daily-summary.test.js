@@ -123,7 +123,7 @@ test('每日推播超過一頁時只提供資訊中心連結，不使用群組 p
   assert.match(serializedMessage, /開啟資訊中心查看全部/);
 });
 
-test('沒有未處理交班時仍會推播清空摘要', async () => {
+test('沒有未處理交班時只推播當天課程', async () => {
   let pushedMessages;
   const sender = createDailySummarySender({
     groupId: 'G-PRODUCTION',
@@ -154,18 +154,19 @@ test('沒有未處理交班時仍會推播清空摘要', async () => {
 
   await sender();
 
-  assert.equal(pushedMessages.length, 2);
-  assert.deepEqual(pushedMessages[0], {
-    type: 'text',
-    text: '今日沒有未處理交班事項。',
-  });
-  assert.equal(pushedMessages[1].type, 'flex');
+  assert.equal(pushedMessages.length, 1);
+  assert.equal(pushedMessages[0].type, 'flex');
+  assert.doesNotMatch(JSON.stringify(pushedMessages), /今日沒有未處理交班事項/);
 });
 
-test('非當天課程不會出現在每日提醒', () => {
-  const messages = buildDailyMessages(
-    [],
-    [
+test('沒有交班且課程不在當天時完全不推播', async () => {
+  let pushCount = 0;
+  const sender = createDailySummarySender({
+    groupId: 'G-PRODUCTION',
+    now: () => Date.parse('2026-07-24T00:00:00.000Z'),
+    repository: {
+      async listRecords(_scope, filters) {
+        return filters.category === 'handover' ? [] : [
       {
         shortId: 'E-FUTURE',
         category: 'education',
@@ -174,11 +175,17 @@ test('非當天課程不會出現在每日提醒', () => {
         createdAt: Date.parse('2026-07-24T00:00:00.000Z'),
         expiresAt: Date.parse('2026-07-25T15:59:59.999Z'),
       },
-    ],
-    Date.parse('2026-07-24T00:00:00.000Z'),
-  );
+        ];
+      },
+    },
+    client: {
+      async pushMessage() { pushCount += 1; },
+    },
+  });
 
-  assert.equal(messages.length, 2);
+  assert.equal((await sender()).status, 'skipped');
+  assert.equal(pushCount, 0);
+  assert.deepEqual(buildDailyMessages([], [], Date.now()), []);
 });
 
 test('未設定目標群組時不會推播', async () => {
